@@ -8,28 +8,34 @@ function [ cp_time, cp_param, prob ] = heartbeat_cptransition( model, last_cp_ti
 % Sample state if not provided
 if (nargin<7)||isempty(cp_time)||isempty(cp_param)
     
-    % Sample a new parameter
-    cp_param = mvnrnd(last_cp_param, diag([model.p_trans_vr,  model.a_trans_vr]))';
-    p = cp_param(1);
+    last_p = last_cp_param(1);
     
     % Rejection sample new changepoint time
-    lower_lim = gamcdf(known_time-last_cp_time, p/model.tau_trans_scale, model.tau_trans_scale);
+    lower_lim = gamcdf(known_time-last_cp_time, last_p/model.tau_trans_scale, model.tau_trans_scale);
     u = unifrnd(lower_lim, 1);
-    cp_time = last_cp_time + gaminv(u, p/model.tau_trans_scale, model.tau_trans_scale);
+    cp_time = last_cp_time + gaminv(u, last_p/model.tau_trans_scale, model.tau_trans_scale);
     
-    if cp_time > current_time
+    if cp_time < current_time
+        
+        % Sample a new parameter for the new changepoint
+        cp_param = mvnrnd(last_cp_param, diag([model.p_trans_vr,  model.a_trans_vr]))';
+        
+    else
+        
+        % No changepoint occured between known_time and current_time
         cp_time = zeros(1,0);
         cp_param = zeros(model.dp,0);
+        
     end
 end
 
 % Calculate probability if required
 if nargout>2
     if isempty(cp_time)
-        prob = log(1-gamcdf(known_time-last_cp_time, p/model.tau_trans_scale, model.tau_trans_scale));
+        prob = log(1-gamcdf(known_time-last_cp_time, last_p/model.tau_trans_scale, model.tau_trans_scale));
     else
-        prob = log(gampdf(cp_time-last_cp_time, p/model.tau_trans_scale, model.tau_trans_scale)) ...
-              -log(1-gamcdf(known_time-last_cp_time, p/model.tau_trans_scale, model.tau_trans_scale)) ...
+        prob = log(gampdf(cp_time-last_cp_time, last_p/model.tau_trans_scale, model.tau_trans_scale)) ...
+              -log(1-gamcdf(known_time-last_cp_time, last_p/model.tau_trans_scale, model.tau_trans_scale)) ...
               +loggausspdf(cp_param, last_cp_param, diag([model.p_trans_vr,  model.a_trans_vr]));
     end
 else

@@ -6,6 +6,7 @@ function [ ancestor ] = sample_weights( algo, weight, N )
 weight = weight(:)';
 
 % Convert weights to linear domain and normalise
+weight = weight - max(weight);
 weight = exp(weight);
 weight = weight/sum(weight);
 

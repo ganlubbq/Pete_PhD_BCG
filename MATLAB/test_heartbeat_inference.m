@@ -29,7 +29,7 @@ if ~exist('flags.batch', 'var') || (~flags.batch)
     
     % Set display options
     display.text = true;
-    display.plot_during = true;
+    display.plot_during = false;
     if display.plot_during
         display.h_pf(1) = figure;
         display.h_pf(2) = figure;
@@ -49,7 +49,7 @@ end
 [pf] = hearbeat_vrpf(display, algo, model, time, observ);
 
 %% Evaluation
-[cp_list, pf_cp] = process_pf(algo, model, pf);
+[ cp_list, pf_cp, pf_p, pf_a, rb_est ] = process_pf( algo, model, pf );
 
 %% Plot graphs
 
@@ -60,5 +60,9 @@ if (~flags.batch) && display.plot_after
     for ii = 1:algo.Nf
         plot(pf_cp{ii}, zeros(size(pf_cp{ii})), 'r*')
     end
+    
+    figure, hold on, cellfun(@(x,y) plot(x,y), pf_cp, pf_p);
+    figure, hold on, cellfun(@(x,y) plot(x,y), pf_cp, pf_a);
+    figure, hold on, surf(rb_est), shading interp
     
 end
