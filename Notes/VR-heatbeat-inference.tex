@@ -1,0 +1,103 @@
+\documentclass{article}
+
+\usepackage{amsmath}
+\usepackage{IEEEtrantools}
+\usepackage{color}
+
+\newenvironment{meta}[0]{\color{red} \em}{}
+\newcommand{\sinc}{{\rm sinc}}
+
+\title{Inference of Heartbeats in BCG and ECG signals using Variable Rate Particle Filtering}
+\author{Pete Bunch}
+\date{November 2012}
+
+\begin{document}
+
+\maketitle
+
+\section{Model}
+
+Here we start with a nice simple model. A sequence of changepoints $\{\tau_k\}$ represents the start of each beat. Associated parameter sequences $\{a_k\}$ and $\{p_k\}$ represent the amplitude and pulse (mean beat period) for the corresponding beat. Finally, $\{\mathbf{w}_k\}$ is a vector representing the waveform of the pulse. This will consist of about 30 discrete samples (which, at 30Hz sampling rate, is about a second long).
+
+The continuous time signal can be written as,
+%
+\begin{IEEEeqnarray}{rCl}
+ s(t) & = & a_{K(t)} b(t,\tau_{K_t})^T \mathbf{w}_{K(t)}     ,
+\end{IEEEeqnarray}
+
+where $b(t,\tau_{K_t})^T$ is an interpolation matrix which reconstructs a continuous time waveform from the discrete samples. For example, if we used sinc-interpolation,
+%
+\begin{IEEEeqnarray}{rCl}
+ b(t,\tau_{K_t})_{n} & = & \sinc\left( \frac{t - n T_s - \tau_{K(t)}}{T_s} \right)    ,
+\end{IEEEeqnarray}
+
+where $T_s = \frac{1}{f_s}$ is the sampling period.
+
+The waveform $\mathbf{w}_k$ is expected to change only slowly over time. We use a Gaussian transition density with a tight covariance matrix,
+%
+\begin{IEEEeqnarray}{rCl}
+ p(\mathbf{w}_k | \mathbf{w}_{k-1}) & = & \mathcal{N}(\mathbf{w}_k|\mathbf{w}_{k-1},Q_w)     .
+\end{IEEEeqnarray}
+
+In addition, we assume that:
+\begin{itemize}
+  \item $\tau_k$ has some distribution (probably gamma or inverse-gamma) with mean $\tau_{k-1} + p_{k-1}$.
+  \item $p_{k}$ has some distribution (maybe gamma or inverse gamma) with mean $p_{k-1}$.
+  \item $A_{k}$ has some distribution (maybe Rayleigh) with mean $A_{k-1}$.
+\end{itemize}
+
+Finally, we assume a Gaussian observation model,
+%
+\begin{IEEEeqnarray}{rCl}
+ y_n & = & \mathcal{N}(y_n|s(t_n),\sigma_y^2)     .
+\end{IEEEeqnarray}
+
+
+
+\section{Inference Algorithm}
+
+Within this model we can do inference using a variable rate particle filter. In addition, because of the linear-Gaussian model assumptions, we can Rao-Blackwellise the waveform variable, $\mathbf{w}_k$, which will give us a huge dimensionality reduction. Hooray! The resulting algorithm will be a modification of that of [Morelande and Gordon, 2009].
+
+We want our particle filter to estimate the changepoint times and also the parameters,
+%
+\begin{IEEEeqnarray}{rCl}
+ \mathbf{u}_k & = & \begin{bmatrix} p_k \\ a_k \end{bmatrix}     .
+\end{IEEEeqnarray}
+
+As usual, we bundle all these into a single variable,
+%
+\begin{IEEEeqnarray}{rCl}
+ \theta_n^- & = & \left\{ \tau_j, u_j \forall j : 0 \leq \tau_j < t_n \right\}     .
+\end{IEEEeqnarray}
+
+So the target distribution is,
+%
+\begin{IEEEeqnarray}{rCl}
+ p(\theta_n^- | y_{1:n})     .
+\end{IEEEeqnarray}
+
+A standard variable rate particle filter can now be applied. The likelihood is a little bit tricky,
+%
+\begin{IEEEeqnarray}{rCl}
+ p(y_n | \theta_n^-, y_{1:n-1}) & = & \int p(y_n | \theta_n^-, \mathbf{w}_{K_n}) p(\mathbf{w}_{K_n} | \theta_n^-, y_{1:n-1}) d\mathbf{w}_{K_n} \nonumber \\
+                              & = & \int p(y_n | s(t_n)) p(\mathbf{w}_{K_n} | \theta_n^-, y_{1:n-1}) d\mathbf{w}_{K_n} \nonumber \\
+                              & = & \int \mathcal{N}(y_n|a_{K_n} b(t,\tau_{K_n})^T \mathbf{w}_{K_n},\sigma_y^2) \mathcal{N}(\mathbf{w}_{K_n}|\mathbf{m}_{n-1},\mathbf{P}_{n-1})      .
+\end{IEEEeqnarray}
+
+A Kalman filter is maintained for each particle to estimate the density over $\mathbf{w}_{K_n}$. If no changepoint occurs between $t_{n-1}$ and $t_n$, then,
+%
+\begin{IEEEeqnarray}{rCl}
+ p(\mathbf{w}_{K_n} | \theta_n^-, y_{1:n}) & \propto & p(y_n | \mathbf{w}_{K_n}, \theta_n^-) p(\mathbf{w}_{K_n} | \theta_n^-, y_{1:n-1}) \nonumber \\
+                                           & =       & \mathcal{N}(y_n|a_{K_n} b(t,\tau_{K_n})^T \mathbf{w}_{K_n},\sigma_y^2) \mathcal{N}(\mathbf{w}_{K_n}|\mathbf{m}_{n-1},\mathbf{P}_{n-1})     .
+\end{IEEEeqnarray}
+
+Alternatively, if a changepoint does occur between $t_{n-1}$ and $t_n$, then,
+%
+\begin{IEEEeqnarray}{rCl}
+ p(\mathbf{w}_{K_n} | \theta_n^-, y_{1:n}) & = & p(y_n | \mathbf{w}_{K_n}, \theta_n^-) \int p(\mathbf{w}_{K_n} | \mathbf{w}_{K_n-1}) p(\mathbf{w}_{K_n-1} | \theta_n^-, y_{1:n-1}) d\mathbf{w}_{K_n-1} \nonumber \\
+                                           & = & \mathcal{N}(y_n|a_{K_n} b(t,\tau_{K_n})^T \mathbf{w}_{K_n},\sigma_y^2) \int \mathcal{N}(\mathbf{w}_{K_n}|\mathbf{w}_{K_n-1},Q_w) \mathcal{N}(\mathbf{w}_{K_n-1}|\mathbf{m}_{n-1},\mathbf{P}_{n-1})     .
+\end{IEEEeqnarray}
+
+So everything's Gaussian, and can be calculated in closed form. Jolly good.
+
+\end{document}
