@@ -51,9 +51,11 @@ time = time - time(1);
 time = time / fs;
 
 % Select a little chunk
-F = F(315+1:315+K)';
+F = F(6716+1:6716+K)';
+% F = F(315+1:315+K)';
 F(1) = NaN;
-time = time(315+1:315+K)';
+time = time(6716+1:6716+K)';
+% time = time(315+1:315+K)';
 time = time - time(1);
 % figure, plot(F)
 

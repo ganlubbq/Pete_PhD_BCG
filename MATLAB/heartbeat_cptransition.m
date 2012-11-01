@@ -12,8 +12,13 @@ if (nargin<7)||isempty(cp_time)||isempty(cp_param)
     
     % Rejection sample new changepoint time
     lower_lim = gamcdf(known_time-last_cp_time, last_p/model.tau_trans_scale, model.tau_trans_scale);
-    u = unifrnd(lower_lim, 1);
-    cp_time = last_cp_time + gaminv(u, last_p/model.tau_trans_scale, model.tau_trans_scale);
+    if lower_lim < 1
+        u = unifrnd(lower_lim, 1);
+        cp_time = last_cp_time + gaminv(u, last_p/model.tau_trans_scale, model.tau_trans_scale);
+    else
+        % Distribution is pathologically peaky
+        cp_time = last_cp_time + last_p;
+    end
     
     if cp_time < current_time
         

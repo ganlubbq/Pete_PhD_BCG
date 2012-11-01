@@ -1,7 +1,7 @@
 % Set model parameters
 
 % Basics
-model.K = 2000;              % Number of observations
+model.K = 1000;              % Number of observations
 model.fs = 30;              % Sampling frequency of observations (after load_and_calibrate, which downsamples)
 model.dp = 2;               % Number of changepoint parameter dimensions (beat amplitude and period)
 model.dw = 30;              % Number of 
@@ -17,8 +17,8 @@ model.p_prior_scale = 0.06;
 model.a_prior_scale = 1;
 
 % Transition models
-model.tau_trans_scale = 1/1000;         % Changepoint time transition density (gamma) scale (shape is given by p/scale)
-model.p_trans_vr = 0.01^2;              % Beat period transition density (normal) variance (mean is the previous value)
+model.tau_trans_scale = 1E-6;           % Changepoint time transition density (gamma) scale (shape is given by p/scale)
+model.p_trans_vr = 0.05^2;              % Beat period transition density (normal) variance (mean is the previous value)
 model.a_trans_vr = 0.05^2;              % Beat amplitude transition density (normal) variance (mean is the previous value)
 model.w_trans_vr = 0.00001*eye(model.dw); % Waveform transition density (normal) covariance matrix (mean is the previous value)
 

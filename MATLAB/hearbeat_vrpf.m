@@ -66,7 +66,8 @@ for kk = 2:K
     diagnostic_lastest_cp_param = zeros(model.dp,Nf);
     
     % Shall we resample this frame?
-    if rem(kk,30)==0
+%     if rem(kk,1)==0
+    if kk > 60
         flag_resampling = true;
     else
         flag_resampling = false;
@@ -74,7 +75,20 @@ for kk = 2:K
     
     % Sample ancestors
     if flag_resampling
-        pf(kk).ancestor = sample_weights(algo, pf(kk-1).weight, Nf);
+        sampling_weights = pf(kk-1).weight;
+        sampling_weights = sampling_weights-max(sampling_weights);
+        sampling_weights = exp(sampling_weights);
+        sampling_weights = sampling_weights/sum(sampling_weights);
+        recent_jumps = pf(kk-1).cp_time > (time(kk)-10/model.fs);
+        sampling_weights(recent_jumps) = 1/Nf;
+        sampling_weights(~recent_jumps) = sampling_weights(~recent_jumps)*((Nf-sum(recent_jumps))/Nf)/sum(sampling_weights(~recent_jumps));
+%         sampling_weights = max(sampling_weights, 1);
+%         sampling_weights = sampling_weights/sum(sampling_weights);
+%         low_weights = sampling_weights < (1/Nf);
+%         sampling_weights(low_weights) = 1/Nf;
+%         sampling_weights(~low_weights) = sampling_weights(~low_weights)*((Nf-sum(low_weights))/Nf)/sum(sampling_weights(~low_weights));
+        sampling_weights = log(sampling_weights);
+        pf(kk).ancestor = sample_weights(algo, sampling_weights, Nf);
     else
         pf(kk).ancestor = 1:Nf;
     end
@@ -161,15 +175,18 @@ for kk = 2:K
         % Weight
 %         pf(kk).weight(ii) = lh_prob;
         if flag_resampling
-            pf(kk).weight(ii) = lh_prob;
+            pf(kk).weight(ii) = pf(kk-1).weight(a_idx) - sampling_weights(a_idx) + lh_prob;
+%             pf(kk).weight(ii) = lh_prob;
         else
             pf(kk).weight(ii) = pf(kk-1).weight(a_idx) + lh_prob;
         end
         
-%         % Resample-move
-%         [cp_time, cp_param] = heartbeat_rm(algo, model, cp_time, cp_param, last_cp_time, last_cp_param);
-%         pf(kk).cp_time(ii) = cp_time;
-%         pf(kk).cp_param(:,ii) = cp_param;
+        if flag_resampling
+            % Resample-move
+            [cp_time, cp_param] = heartbeat_rm(algo, model, cp_time, cp_param, last_cp_time, last_cp_param);
+            pf(kk).cp_time(ii) = cp_time;
+            pf(kk).cp_param(:,ii) = cp_param;
+        end
         
         % Diagnostics
         diagnostic_lastest_cp_time(ii) = cp_time;
@@ -179,9 +196,9 @@ for kk = 2:K
     
     % Diagnostics
     if display.plot_during
-        figure(display.h_pf(1)); clf; hold on; hist(diagnostic_lastest_cp_time);
-        figure(display.h_pf(2)); clf; hold on; hist(diagnostic_lastest_cp_param(1,:));
-        figure(display.h_pf(3)); clf; hold on; hist(diagnostic_lastest_cp_param(2,:));
+        figure(display.h_pf(1)); clf; hold on; hist(diagnostic_lastest_cp_time, 1000);
+        figure(display.h_pf(2)); clf; hold on; hist(diagnostic_lastest_cp_param(1,:), 1000);
+        figure(display.h_pf(3)); clf; hold on; hist(diagnostic_lastest_cp_param(2,:), 1000);
         figure(display.h_pf(4)); clf; hold on; plot(pf(kk).rb_mn);
         pause
     end

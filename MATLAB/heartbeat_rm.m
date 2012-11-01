@@ -4,8 +4,6 @@ function [ cp_time, cp_param ] = heartbeat_rm( algo, model, cp_time, cp_param, l
 % Propose a new value for the beat period from the transition density
 % (Gibbs, so no acceptance probability needed.
 
-
-%%% THIS NEEDS MODIFYING IN LIGHT OF THE CURRENT TIME
 if any(isnan(last_cp_param))
     cp_param(1) = gamrnd(model.p_prior_shape, model.p_prior_scale);
 else
