@@ -23,7 +23,11 @@ if (nargin<7)||isempty(cp_time)||isempty(cp_param)
     if cp_time < current_time
         
         % Sample a new parameter for the new changepoint
-        cp_param = mvnrnd(last_cp_param, diag([model.p_trans_vr,  model.a_trans_vr]))';
+        cp_param = zeros(model.dp,1);
+        while cp_param <= model.p_min
+            cp_param(1) = mvnrnd(last_cp_param(1), model.p_trans_vr);
+        end
+        cp_param(2) = mvnrnd(last_cp_param(2), model.a_trans_vr);
         
     else
         
@@ -41,7 +45,8 @@ if nargout>2
     else
         prob = log(gampdf(cp_time-last_cp_time, last_p/model.tau_trans_scale, model.tau_trans_scale)) ...
               -log(1-gamcdf(known_time-last_cp_time, last_p/model.tau_trans_scale, model.tau_trans_scale)) ...
-              +loggausspdf(cp_param, last_cp_param, diag([model.p_trans_vr,  model.a_trans_vr]));
+              +loggausspdf(cp_param, last_cp_param, diag([model.p_trans_vr,  model.a_trans_vr])) ...
+              -log(1-normcdf(model.p_min, last_cp_param(1), model.p_trans_vr));
     end
 else
     prob = [];

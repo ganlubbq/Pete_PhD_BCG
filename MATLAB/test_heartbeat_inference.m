@@ -49,7 +49,7 @@ end
 [pf] = hearbeat_vrpf(display, algo, model, time, observ);
 
 %% Evaluation
-[ cp_list, pf_cp, pf_p, pf_a, rb_est ] = process_pf( algo, model, pf );
+[ cp_list, pf_cp, pf_p, pf_a, rb_est, reconstructed ] = process_pf( algo, model, time, pf );
 
 %% Plot graphs
 
@@ -63,6 +63,9 @@ if (~flags.batch) && display.plot_after
     
     figure, hold on, cellfun(@(x,y) plot(x,y), pf_cp, pf_p);
     figure, hold on, cellfun(@(x,y) plot(x,y), pf_cp, pf_a);
+    figure, hold on, cellfun(@(x) plot(diff(x)), pf_cp);
     figure, hold on, surf(rb_est), shading interp
+    figure, hold on, plot(reconstructed,'b'), plot(observ, 'r')
+    figure, hold on, plot(observ-reconstructed)
     
 end

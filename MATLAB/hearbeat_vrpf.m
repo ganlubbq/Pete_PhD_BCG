@@ -81,7 +81,7 @@ for kk = 2:K
         sampling_weights = sampling_weights/sum(sampling_weights);
         recent_jumps = pf(kk-1).cp_time > (time(kk)-10/model.fs);
         sampling_weights(recent_jumps) = 1/Nf;
-        sampling_weights(~recent_jumps) = sampling_weights(~recent_jumps)*((Nf-sum(recent_jumps))/Nf)/sum(sampling_weights(~recent_jumps));
+        sampling_weights(~recent_jumps) = sampling_weights(~recent_jumps)*((Nf-sum(recent_jumps))/Nf)/sum(eps+sampling_weights(~recent_jumps));
 %         sampling_weights = max(sampling_weights, 1);
 %         sampling_weights = sampling_weights/sum(sampling_weights);
 %         low_weights = sampling_weights < (1/Nf);
@@ -112,26 +112,12 @@ for kk = 2:K
         latest_cp_time = pf(kk-1).cp_time(a_idx);
         latest_cp_param = pf(kk-1).cp_param(:,a_idx);
         
-        
-%         % Get last changepoint
-%         last_cp_time = [];
-%         kt = kk;
-%         anc = ii;
-%         while isempty(last_cp_time)
-%             anc = pf(kt).ancestor(anc);
-%             kt = kt - 1;
-%             last_cp_time = pf(kt).cp_time{anc};
-%         end
-%         last_cp_time = last_cp_time(end);
-%         last_cp_param = pf(kt).cp_param{anc}(:,end);
-        
         % Get last rb estimate
         last_rb_mn = pf(kk-1).rb_mn(:,pf(kk).ancestor(ii));
         last_rb_vr = pf(kk-1).rb_vr(:,:,pf(kk).ancestor(ii));
         
         % Sample changepoint transition density
         [ cp_time, cp_param, ~ ] = heartbeat_cptransition(model, latest_cp_time, latest_cp_param, time(kk-1), time(kk));
-        
         
         if ~isempty(cp_time)
             % Changepoint has occured!
@@ -194,11 +180,14 @@ for kk = 2:K
         
     end
     
+    assert(~any(isnan(pf(kk).weight)));
+    assert(~all(isinf(pf(kk).weight)));
+    
     % Diagnostics
-    if display.plot_during
-        figure(display.h_pf(1)); clf; hold on; hist(diagnostic_lastest_cp_time, 1000);
-        figure(display.h_pf(2)); clf; hold on; hist(diagnostic_lastest_cp_param(1,:), 1000);
-        figure(display.h_pf(3)); clf; hold on; hist(diagnostic_lastest_cp_param(2,:), 1000);
+    if display.plot_during% && (kk>150)
+        figure(display.h_pf(1)); clf; hold on; hist(diagnostic_lastest_cp_time, 100);
+        figure(display.h_pf(2)); clf; hold on; hist(diagnostic_lastest_cp_param(1,:), 100);
+        figure(display.h_pf(3)); clf; hold on; hist(diagnostic_lastest_cp_param(2,:), 100);
         figure(display.h_pf(4)); clf; hold on; plot(pf(kk).rb_mn);
         pause
     end

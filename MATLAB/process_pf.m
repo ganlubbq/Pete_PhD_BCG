@@ -1,4 +1,4 @@
-function [ cp_list, pf_cp, pf_p, pf_a, rb_est ] = process_pf( algo, model, pf )
+function [ cp_list, pf_cp, pf_p, pf_a, rb_est, reconstructed ] = process_pf( algo, model, time, pf )
 %PROCESS_PF Take a particle filter output structure and collate useful
 %arrays of things
 
@@ -6,7 +6,7 @@ function [ cp_list, pf_cp, pf_p, pf_a, rb_est ] = process_pf( algo, model, pf )
 % cp_list = cell2mat(arrayfun(@(x) {cell2mat(x.cp_time)'}, pf));
 cp_list = unique(cat(2,pf.cp_time));
 
-% Particle changepoint sets
+% Particle changepoint sets and reconstruction
 pf_cp = cell(algo.Nf,1);
 pf_p = cell(algo.Nf,1);
 pf_a = cell(algo.Nf,1);
@@ -21,6 +21,24 @@ for ii = 1:algo.Nf
         anc = pf(kk).ancestor(anc);
     end
 end
+
+% Reconstruct estimated signal
+reconstructed = zeros(algo.Nf,model.K);
+for kk = 1:model.K
+    weight = pf(kk).weight;
+    weight = weight - max(weight);
+    weight = exp(weight);
+    weight = weight/sum(weight);
+    for ii = 1:algo.Nf
+        cp_time = pf(kk).cp_time(ii);
+        cp_a = pf(kk).cp_param(2,ii);
+        rb_mn = pf(kk).rb_mn(:,ii);
+        interp_vector = heartbeat_interpolation(algo, model, time(kk), cp_time);
+        reconstructed(ii,kk) = weight(ii)*cp_a*interp_vector*rb_mn;
+        
+    end
+end
+reconstructed = sum(reconstructed);
 
 % RB estimates
 rb_est = zeros(model.dw, model.K);
