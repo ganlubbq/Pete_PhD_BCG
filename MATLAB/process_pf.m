@@ -1,4 +1,4 @@
-function [ cp_list, pf_cp, pf_p, pf_a, rb_est, reconstructed ] = process_pf( algo, model, time, pf )
+function [ cp_list, pf_cp, pf_p, pf_a, rb_est, clut_indic, reconstructed ] = process_pf( algo, model, time, pf )
 %PROCESS_PF Take a particle filter output structure and collate useful
 %arrays of things
 
@@ -6,7 +6,7 @@ function [ cp_list, pf_cp, pf_p, pf_a, rb_est, reconstructed ] = process_pf( alg
 % cp_list = cell2mat(arrayfun(@(x) {cell2mat(x.cp_time)'}, pf));
 cp_list = unique(cat(2,pf.cp_time));
 
-% Particle changepoint sets and reconstruction
+% Particle changepoint sets
 pf_cp = cell(algo.Nf,1);
 pf_p = cell(algo.Nf,1);
 pf_a = cell(algo.Nf,1);
@@ -40,13 +40,15 @@ for kk = 1:model.K
 end
 reconstructed = sum(reconstructed);
 
-% RB estimates
+%% Fixed rate estimates
 rb_est = zeros(model.dw, model.K);
+clut_indic = zeros(1, model.K);
 for kk = 1:model.K
     weight = pf(kk).weight - max(pf(kk).weight);
     lin_weight = exp(weight);
     lin_weight = lin_weight/sum(lin_weight);
     rb_est(:,kk) = (lin_weight * pf(kk).rb_mn')';
+    clut_indic(1,kk) = lin_weight * pf(kk).clut_indic';
 end
 
 end

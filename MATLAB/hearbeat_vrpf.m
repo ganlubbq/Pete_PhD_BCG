@@ -27,6 +27,7 @@ pf = struct('Ncp', cell(K,1), ...                       Number of changepoints
             'cp_param', cell(K,1), ...          ... and the corresponding parameters
             'last_cp_time', cell(K,1), ...      Changepoint before that ...
             'last_cp_param', cell(K,1), ...     ... and the corresponding parameters
+            'clut_indic', cell(K,1), ...        Clutter indicator variable
             'rb_mn', cell(K,1), ...             Mean of the Rao-Blackwellised bit
             'rb_vr', cell(K,1), ...             (Co)variance of the Rao-Blackwellised bit
             'ancestor', cell(K,1), ...          Ancestor particle
@@ -38,6 +39,7 @@ pf(1).cp_time = zeros(1, Nf);
 pf(1).cp_param = zeros(model.dp, Nf);
 pf(1).last_cp_time = NaN(1, Nf);
 pf(1).last_cp_param = NaN(model.dp, Nf);
+pf(1).clut_indic = zeros(1, Nf);
 pf(1).rb_mn = zeros(model.dw, Nf);
 pf(1).rb_vr = zeros(model.dw, model.dw, Nf);
 pf(1).ancestor = zeros(1, Nf);
@@ -101,6 +103,7 @@ for kk = 2:K
     pf(kk).cp_param = zeros(model.dp, Nf);
     pf(kk).last_cp_time = zeros(1, Nf);
     pf(kk).last_cp_param = zeros(model.dp, Nf);
+    pf(kk).clut_indic = zeros(1, Nf);
     
     % Loop through particles
     for ii = 1:Nf
@@ -149,14 +152,31 @@ for kk = 2:K
         pf(kk).last_cp_param(:,ii) = last_cp_param;
         pf(kk).Ncp(ii) = Ncp;
         
-        % Linear update bit
+        % Linear observation and update bit
         
-        % Kalman filter update
+        % Interpolation vector
         H = cp_param(2)*heartbeat_interpolation(algo, model, time(kk), cp_time);
-        [rb_mn, rb_vr, ~, ~, ~, lh] = kf_update(rb_mn, rb_vr, observ(:,kk), H, model.y_obs_vr);
-        lh_prob = log(lh);
-        pf(kk).rb_mn(:,ii) = rb_mn;
-        pf(kk).rb_vr(:,:,ii) = rb_vr;
+        
+        % Calculate clutter proposal probabilities
+        [rb_mn_noclut, rb_vr_noclut, ~, ~, ~, lh_noclut] = kf_update(rb_mn, rb_vr, observ(:,kk), H, model.y_obs_vr);
+        [rb_mn_clut,   rb_vr_clut,   ~, ~, ~, lh_clut  ] = kf_update(rb_mn, rb_vr, observ(:,kk), H, model.y_clut_vr);
+        clut_prob = [model.pc * lh_clut; (1-model.pc)*lh_noclut];
+        lh_prob = log(sum(clut_prob));
+        clut_prob = clut_prob/sum(clut_prob);
+        
+        % Propose a value for the clutter indicator
+        clut_indic = rand<clut_prob(1);
+        
+        % Store updated values
+        if clut_indic == 0
+            pf(kk).rb_mn(:,ii) = rb_mn_noclut;
+            pf(kk).rb_vr(:,:,ii) = rb_vr_noclut;
+            pf(kk).clut_indic(ii) = 0;
+        else
+            pf(kk).rb_mn(:,ii) = rb_mn_clut;
+            pf(kk).rb_vr(:,:,ii) = rb_vr_clut;
+            pf(kk).clut_indic(ii) = 1;
+        end
         
         % Weight
 %         pf(kk).weight(ii) = lh_prob;

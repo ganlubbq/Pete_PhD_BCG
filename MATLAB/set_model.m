@@ -11,7 +11,7 @@ model.dw = 30;              % Number of
 % model.w_prior_mn = template;
 % model.w_prior_vr = 0.1*eye(model.dw, model.dw);
 model.w_prior_mn = zeros(model.dw,1);
-model.w_prior_vr = 1*eye(model.dw, model.dw);
+model.w_prior_vr = 10*eye(model.dw, model.dw);
 model.p_prior_shape = 20;
 model.p_prior_scale = 0.06;
 model.a_prior_mn = 1;
@@ -24,5 +24,9 @@ model.p_min = 0.4;                      % Minimum beat period
 model.a_trans_vr = 0.05^2;              % Beat amplitude transition density (normal) variance (mean is the previous value)
 model.w_trans_vr = 0.001*eye(model.dw); % Waveform transition density (normal) covariance matrix (mean is the previous value)
 
+% Clutter
+model.pc = 1E-3;                        % Cluter probability
+model.y_clut_vr = 50^2;                 % Clutter observation variance
+
 % Observation model
-model.y_obs_vr = 0.1^2;                 % Observation variance
+model.y_obs_vr = 0.5^2;                 % Observation variance

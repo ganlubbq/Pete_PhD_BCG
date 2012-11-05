@@ -1,8 +1,10 @@
 function [ time, F ] = load_and_calibrate(K, datafilename, calibfilename)
 
 % Set things
-t_start = 2.8E6;    % Time index to start at
-t_stop = 2.9E6;     % Time index to stop at
+% t_start = 2.8E6;    % Time index to start at
+% t_stop = 2.9E6;     % Time index to stop at
+t_start = 6.05E6;    % Time index to start at
+t_stop = 7.05E6;     % Time index to stop at
 dsr = 10;            % Down sampling ratio - sets low pass filter cut-off (5 --> 30Hz)
 
 % Constants
@@ -46,16 +48,17 @@ load(calibfilename)
 F1 = (value1_filt - c1).*m1;
 F2 = (value2_filt - c2).*m2;
 F = F1+F2;
-F = F-mean(F);
 time = time - time(1);
 time = time / fs;
 
 % Select a little chunk
-F = F(6716+1:6716+K)';
-% F = F(315+1:315+K)';
+% offset = 315;
+% offset = 6716;
+offset = 15;
+F = F(offset+1:offset+K)';
+F = F-mean(F);
 F(1) = NaN;
-time = time(6716+1:6716+K)';
-% time = time(315+1:315+K)';
+time = time(offset+1:offset+K)';
 time = time - time(1);
 % figure, plot(F)
 
