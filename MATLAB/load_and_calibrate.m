@@ -11,7 +11,8 @@ dsr = 10;            % Down sampling ratio - sets low pass filter cut-off (5 -->
 fs = 300;
 
 % Derivative constants
-fcut = fs/dsr;
+fhigh = fs/(2*dsr);
+flow = 0.2;
 
 % Load data
 load(datafilename);
@@ -34,7 +35,8 @@ value2 = value2(t_idx);
 %%
 
 % Low pass filter to remove 50Hz
-b = fir1(300,fcut/(fs/2));
+% b = fir1(300, [flow fhigh]/(fs/2));
+b = fir1(300, fhigh/(fs/2)) - ones(1,301)/301;
 value1_filt = filtfilt(b, 1, value1);
 value2_filt = filtfilt(b, 1, value2);
 
@@ -45,16 +47,19 @@ time = time(1:dsr:length(time));
 
 % Calibrate
 load(calibfilename)
-F1 = (value1_filt - c1).*m1;
-F2 = (value2_filt - c2).*m2;
+% F1 = (value1_filt - c1).*m1;
+% F2 = (value2_filt - c2).*m2;
+F1 = (value1_filt).*m1;
+F2 = (value2_filt).*m2;
 F = F1+F2;
 time = time - time(1);
 time = time / fs;
 
 % Select a little chunk
-% offset = 315;
-% offset = 6716;
-offset = 15;
+% offset = 315;       % Good clear section with 2.8-2.9E6
+% offset = 6716;      % Good clear section with 2.8-2.9E6
+% offset = 15;        % Difficult section with 6.05-7.05E6
+offset = 9023;      % Clutter section with 6.05-7.05E6
 F = F(offset+1:offset+K)';
 F = F-mean(F);
 F(1) = NaN;

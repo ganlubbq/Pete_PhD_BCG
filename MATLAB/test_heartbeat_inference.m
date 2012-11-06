@@ -63,7 +63,7 @@ if (~flags.batch) && display.plot_after
     
     figure, hold on, cellfun(@(x,y) plot(x,y), pf_cp, pf_p);
     figure, hold on, cellfun(@(x,y) plot(x,y), pf_cp, pf_a);
-    figure, hold on, cellfun(@(x) plot(diff(x)), pf_cp);
+    figure, hold on, cellfun(@(x) plot(x(2:end),diff(x)), pf_cp);
     figure, hold on, surf(rb_est), shading interp
     figure, hold on, plot(reconstructed,'b'), plot(observ, 'r')
     figure, hold on, plot(observ-reconstructed)

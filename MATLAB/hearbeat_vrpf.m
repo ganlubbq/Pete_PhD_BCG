@@ -119,6 +119,9 @@ for kk = 2:K
         last_rb_mn = pf(kk-1).rb_mn(:,pf(kk).ancestor(ii));
         last_rb_vr = pf(kk-1).rb_vr(:,:,pf(kk).ancestor(ii));
         
+        % Get clutter indicator
+        last_clut_indic = pf(kk-1).clut_indic(ii);
+        
         % Sample changepoint transition density
         [ cp_time, cp_param, ~ ] = heartbeat_cptransition(model, latest_cp_time, latest_cp_param, time(kk-1), time(kk));
         
@@ -160,7 +163,7 @@ for kk = 2:K
         % Calculate clutter proposal probabilities
         [rb_mn_noclut, rb_vr_noclut, ~, ~, ~, lh_noclut] = kf_update(rb_mn, rb_vr, observ(:,kk), H, model.y_obs_vr);
         [rb_mn_clut,   rb_vr_clut,   ~, ~, ~, lh_clut  ] = kf_update(rb_mn, rb_vr, observ(:,kk), H, model.y_clut_vr);
-        clut_prob = [model.pc * lh_clut; (1-model.pc)*lh_noclut];
+        clut_prob = [model.clut_trans(2, last_clut_indic+1) * lh_clut; model.clut_trans(1, last_clut_indic+1)*lh_noclut];
         lh_prob = log(sum(clut_prob));
         clut_prob = clut_prob/sum(clut_prob);
         
@@ -189,7 +192,7 @@ for kk = 2:K
         
         if flag_resampling
             % Resample-move
-            [cp_time, cp_param] = heartbeat_rm(algo, model, cp_time, cp_param, last_cp_time, last_cp_param);
+            [cp_time, cp_param] = heartbeat_rm(algo, model, cp_time, cp_param, last_cp_time, last_cp_param, time(kk));
             pf(kk).cp_time(ii) = cp_time;
             pf(kk).cp_param(:,ii) = cp_param;
         end
@@ -204,7 +207,7 @@ for kk = 2:K
     assert(~all(isinf(pf(kk).weight)));
     
     % Diagnostics
-    if display.plot_during% && (kk>150)
+    if display.plot_during && (kk>60)
         figure(display.h_pf(1)); clf; hold on; hist(diagnostic_lastest_cp_time, 100);
         figure(display.h_pf(2)); clf; hold on; hist(diagnostic_lastest_cp_param(1,:), 100);
         figure(display.h_pf(3)); clf; hold on; hist(diagnostic_lastest_cp_param(2,:), 100);
