@@ -35,7 +35,7 @@ if ~exist('flags.batch', 'var') || (~flags.batch)
         display.h_pf(2) = figure;
         display.h_pf(3) = figure;
         display.h_pf(4) = figure;
-%         display.h_pf(5) = figure;
+        display.h_pf(5) = figure;
     end
     display.plot_after = true;
     
@@ -52,7 +52,7 @@ model.K = model.K - 5514;
 [pf] = hearbeat_vrpf(display, algo, model, time, observ);
 
 %% Evaluation
-[ cp_list, pf_cp, pf_p, pf_a, pf_clut, rb_est, clut_indic, reconstructed ] = process_pf( algo, model, time, pf );
+[ cp_list, pf_cp, pf_p, pf_a, pf_b, pf_clut, rb_est, clut_indic, reconstructed ] = process_pf( algo, model, time, pf );
 
 %% Plot graphs
 
@@ -66,6 +66,7 @@ if (~flags.batch) && display.plot_after
     
     figure, hold on, cellfun(@(x,y) plot(x,y), pf_cp, pf_p);
     figure, hold on, cellfun(@(x,y) plot(x,y), pf_cp, pf_a);
+    figure, hold on, cellfun(@(x,y) plot(x,y), pf_cp, pf_b);
     figure, hold on, cellfun(@(x) plot(x(2:end),diff(x)), pf_cp);
     figure, hold on, surf(rb_est), shading interp
     figure, hold on, plot(reconstructed,'b'), plot(observ, 'r')

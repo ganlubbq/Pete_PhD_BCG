@@ -222,11 +222,12 @@ for kk = 2:K
     assert(~all(isinf(pf(kk).weight)));
     
     % Diagnostics
-    if display.plot_during% && (kk>60)
+    if display.plot_during && (kk>650)
         figure(display.h_pf(1)); clf; hold on; hist(diagnostic_lastest_cp_time, 100);
         figure(display.h_pf(2)); clf; hold on; hist(diagnostic_lastest_cp_param(1,:), 100);
         figure(display.h_pf(3)); clf; hold on; hist(diagnostic_lastest_cp_param(2,:), 100);
-        figure(display.h_pf(4)); clf; hold on; plot(pf(kk).rb_mn);
+        figure(display.h_pf(4)); clf; hold on; hist(diagnostic_lastest_cp_param(3,:), 100);
+        figure(display.h_pf(5)); clf; hold on; plot(pf(kk).rb_mn);
         pause
     end
     

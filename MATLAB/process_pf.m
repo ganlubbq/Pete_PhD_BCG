@@ -1,4 +1,4 @@
-function [ cp_list, pf_cp, pf_p, pf_a, pf_clut, rb_est, clut_indic, reconstructed ] = process_pf( algo, model, time, pf )
+function [ cp_list, pf_cp, pf_p, pf_a, pf_b, pf_clut, rb_est, clut_indic, reconstructed ] = process_pf( algo, model, time, pf )
 %PROCESS_PF Take a particle filter output structure and collate useful
 %arrays of things
 
@@ -10,6 +10,7 @@ cp_list = unique(cat(2,pf.cp_time));
 pf_cp = cell(algo.Nf,1);
 pf_p = cell(algo.Nf,1);
 pf_a = cell(algo.Nf,1);
+pf_b = cell(algo.Nf,1);
 pf_clut = zeros(algo.Nf, model.K);
 for ii = 1:algo.Nf
     anc = ii;
@@ -19,6 +20,7 @@ for ii = 1:algo.Nf
             pf_cp{ii} = [pf(kk).cp_time(anc) pf_cp{ii}];
             pf_p{ii} = [pf(kk).cp_param(1,anc) pf_p{ii}];
             pf_a{ii} = [pf(kk).cp_param(2,anc) pf_a{ii}];
+            pf_b{ii} = [pf(kk).cp_param(3,anc) pf_b{ii}];
         end
         anc = pf(kk).ancestor(anc);
     end

@@ -9,15 +9,16 @@ function [ cp_time, cp_param, prob ] = heartbeat_cptransition( model, last_cp_ti
 if (nargin<7)||isempty(cp_time)||isempty(cp_param)
     
     last_p = last_cp_param(1);
+    last_b = last_cp_param(3);
     
     % Rejection sample new changepoint time
-    lower_lim = gamcdf(known_time-last_cp_time, last_p/model.tau_trans_scale, model.tau_trans_scale);
+    lower_lim = gamcdf(known_time-last_cp_time, (last_p+last_b)/model.tau_trans_scale, model.tau_trans_scale);
     if lower_lim < 1
         u = unifrnd(lower_lim, 1);
-        cp_time = last_cp_time + gaminv(u, last_p/model.tau_trans_scale, model.tau_trans_scale);
+        cp_time = last_cp_time + gaminv(u, (last_p+last_b)/model.tau_trans_scale, model.tau_trans_scale);
     else
         % Distribution is pathologically peaky
-        cp_time = last_cp_time + last_p;
+        cp_time = last_cp_time + (last_p+last_b);
     end
     
     if cp_time < current_time
@@ -29,6 +30,7 @@ if (nargin<7)||isempty(cp_time)||isempty(cp_param)
 %         end
         cp_param(1) = gamrnd(last_cp_param(1)/model.p_trans_scale, model.p_trans_scale);
         cp_param(2) = mvnrnd(last_cp_param(2), model.a_trans_vr);
+        cp_param(3) = exprnd(model.b_trans_mn);
         
     else
         
@@ -42,11 +44,13 @@ end
 % Calculate probability if required
 if nargout>2
     if isempty(cp_time)
-        prob = log(1-gamcdf(known_time-last_cp_time, last_p/model.tau_trans_scale, model.tau_trans_scale));
+        prob = log(1-gamcdf(known_time-last_cp_time, (last_p+last_b)/model.tau_trans_scale, model.tau_trans_scale));
     else
-        prob = log(gampdf(cp_time-last_cp_time, last_p/model.tau_trans_scale, model.tau_trans_scale)) ...
-              -log(1-gamcdf(known_time-last_cp_time, last_p/model.tau_trans_scale, model.tau_trans_scale)) ...
-              +log(gampdf(cp_param(1), last_cp_param(1)/model.p_trans_scale, model.p_trans_scale));
+        prob = log(gampdf(cp_time-last_cp_time, (last_p+last_b)/model.tau_trans_scale, model.tau_trans_scale)) ...
+              -log(1-gamcdf(known_time-last_cp_time, (last_p+last_b)/model.tau_trans_scale, model.tau_trans_scale)) ...
+              +log(gampdf(cp_param(1), last_cp_param(1)/model.p_trans_scale, model.p_trans_scale)) ...
+              +loggausspdf(cp_param(2), last_cp_param(2), model.a_trans_vr) ...
+              +log(exppdf(cp_param(3), model.b_trans_mn));
 %         prob = log(gampdf(cp_time-last_cp_time, last_p/model.tau_trans_scale, model.tau_trans_scale)) ...
 %               -log(1-gamcdf(known_time-last_cp_time, last_p/model.tau_trans_scale, model.tau_trans_scale)) ...
 %               +loggausspdf(cp_param, last_cp_param, diag([model.p_trans_vr,  model.a_trans_vr])) ...
