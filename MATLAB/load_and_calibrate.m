@@ -58,8 +58,8 @@ time = time / fs;
 % Select a little chunk
 % offset = 315;       % Good clear section with 2.8-2.9E6
 % offset = 6716;      % Good clear section with 2.8-2.9E6
-% offset = 15;        % Difficult section with 6.05-7.05E6
-offset = 9023;      % Clutter section with 6.05-7.05E6
+offset = 60;        % Difficult section with 6.05-7.05E6
+% offset = 9023;      % Clutter section with 6.05-7.05E6
 F = F(offset+1:offset+K)';
 F = F-mean(F);
 F(1) = NaN;

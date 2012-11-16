@@ -44,12 +44,15 @@ end
 
 %% Load some data
 [time, observ] = load_and_calibrate(model.K, '../data/F_data1.mat', 'calibration.mat');
+time(1:5514) = []; time = time - time(1);
+observ(1:5514) = [];
+model.K = model.K - 5514;
 
 %% Run the particle filter
 [pf] = hearbeat_vrpf(display, algo, model, time, observ);
 
 %% Evaluation
-[ cp_list, pf_cp, pf_p, pf_a, rb_est, clut_indic, reconstructed ] = process_pf( algo, model, time, pf );
+[ cp_list, pf_cp, pf_p, pf_a, pf_clut, rb_est, clut_indic, reconstructed ] = process_pf( algo, model, time, pf );
 
 %% Plot graphs
 
@@ -67,6 +70,6 @@ if (~flags.batch) && display.plot_after
     figure, hold on, surf(rb_est), shading interp
     figure, hold on, plot(reconstructed,'b'), plot(observ, 'r')
     figure, hold on, plot(observ-reconstructed)
-    figure, hold on, plot(clut_indic);
+    figure, hold on, plot(mean(pf_clut));
     
 end
