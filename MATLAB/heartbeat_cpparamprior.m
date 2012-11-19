@@ -10,6 +10,7 @@ if (nargin<2)||isempty(cp_param)
     cp_param(1) = gamrnd(model.p_prior_shape, model.p_prior_scale);
     cp_param(2) = mvnrnd(model.a_prior_mn, model.a_prior_vr);
     cp_param(3) = exprnd(model.b_prior_mn);
+%     cp_param(3) = 0;
 end
 
 % Calculate probability if required

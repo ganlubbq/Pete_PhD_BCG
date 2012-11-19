@@ -140,11 +140,13 @@ for kk = 2:K
             Ncp = pf(kk-1).Ncp(a_idx) + 1;
             
             % Do a Kalman filter prediction
-            [rb_mn, rb_vr] = kf_predict(last_rb_mn, last_rb_vr, eye(model.dw), model.w_trans_vr);
-            
-            cp_rb_mn = rb_mn;
-            cp_rb_vr = rb_vr;
-            
+            [rb_mn, rb_vr] = kf_predict(last_rb_mn, last_rb_vr, eye(model.dw), model.w_trans_vr);            
+
+%             cp_rb_mn = rb_mn;
+%             cp_rb_vr = rb_vr;
+            cp_rb_mn = last_rb_mn;
+            cp_rb_vr = last_rb_vr;
+
         else
             % Changepoint has not occured - keep the previous estimates
             rb_mn = last_rb_mn;
@@ -222,7 +224,7 @@ for kk = 2:K
     assert(~all(isinf(pf(kk).weight)));
     
     % Diagnostics
-    if display.plot_during && (kk>650)
+    if display.plot_during && (kk>display.plot_after_frame)
         figure(display.h_pf(1)); clf; hold on; hist(diagnostic_lastest_cp_time, 100);
         figure(display.h_pf(2)); clf; hold on; hist(diagnostic_lastest_cp_param(1,:), 100);
         figure(display.h_pf(3)); clf; hold on; hist(diagnostic_lastest_cp_param(2,:), 100);

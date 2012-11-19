@@ -10,6 +10,7 @@ if (nargin<7)||isempty(cp_time)||isempty(cp_param)
     
     last_p = last_cp_param(1);
     last_b = last_cp_param(3);
+%     last_b = 0;
     
     % Rejection sample new changepoint time
     lower_lim = gamcdf(known_time-last_cp_time, (last_p+last_b)/model.tau_trans_scale, model.tau_trans_scale);
@@ -31,6 +32,7 @@ if (nargin<7)||isempty(cp_time)||isempty(cp_param)
         cp_param(1) = gamrnd(last_cp_param(1)/model.p_trans_scale, model.p_trans_scale);
         cp_param(2) = mvnrnd(last_cp_param(2), model.a_trans_vr);
         cp_param(3) = exprnd(model.b_trans_mn);
+%         cp_param(3) = 0;
         
     else
         

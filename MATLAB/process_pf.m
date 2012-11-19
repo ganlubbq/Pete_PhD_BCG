@@ -12,10 +12,15 @@ pf_p = cell(algo.Nf,1);
 pf_a = cell(algo.Nf,1);
 pf_b = cell(algo.Nf,1);
 pf_clut = zeros(algo.Nf, model.K);
+rb_est = zeros(model.dw, model.K);
+reconstructed = zeros(algo.Nf,model.K);
 for ii = 1:algo.Nf
     anc = ii;
     for kk = model.K:-1:1
         pf_clut(ii,kk) = pf(kk).clut_indic(anc);
+        rb_est(:,kk) = rb_est(:,kk) + pf(kk).cp_rb_mn(:,anc)/algo.Nf;
+        interp_vector = heartbeat_interpolation(algo, model, time(kk), pf(kk).cp_time(anc));
+        reconstructed(ii,kk) = interp_vector*pf(kk).cp_rb_mn(:,anc);
         if ~ismember( pf(kk).cp_time(anc), pf_cp{ii} )
             pf_cp{ii} = [pf(kk).cp_time(anc) pf_cp{ii}];
             pf_p{ii} = [pf(kk).cp_param(1,anc) pf_p{ii}];
@@ -25,35 +30,37 @@ for ii = 1:algo.Nf
         anc = pf(kk).ancestor(anc);
     end
 end
+reconstructed = mean(reconstructed,1);
+clut_indic = mean(pf_clut,1);
 
-% Reconstruct estimated signal
-reconstructed = zeros(algo.Nf,model.K);
-for kk = 1:model.K
-    weight = pf(kk).weight;
-    weight = weight - max(weight);
-    weight = exp(weight);
-    weight = weight/sum(weight);
-    for ii = 1:algo.Nf
-        cp_time = pf(kk).cp_time(ii);
-        cp_a = pf(kk).cp_param(2,ii);
-        rb_mn = pf(kk).rb_mn(:,ii);
-        interp_vector = heartbeat_interpolation(algo, model, time(kk), cp_time);
-        reconstructed(ii,kk) = weight(ii)*cp_a*interp_vector*rb_mn;
-        
-    end
-end
-reconstructed = sum(reconstructed);
+% % Reconstruct estimated signal
+% reconstructed = zeros(algo.Nf,model.K);
+% for kk = 1:model.K
+%     weight = pf(kk).weight;
+%     weight = weight - max(weight);
+%     weight = exp(weight);
+%     weight = weight/sum(weight);
+%     for ii = 1:algo.Nf
+%         cp_time = pf(kk).cp_time(ii);
+%         cp_a = pf(kk).cp_param(2,ii);
+%         rb_mn = pf(kk).rb_mn(:,ii);
+%         interp_vector = heartbeat_interpolation(algo, model, time(kk), cp_time);
+%         reconstructed(ii,kk) = weight(ii)*cp_a*interp_vector*rb_mn;
+%         
+%     end
+% end
+% reconstructed = sum(reconstructed);
 
-%% Fixed rate estimates
-rb_est = zeros(model.dw, model.K);
-clut_indic = zeros(1, model.K);
-for kk = 1:model.K
-    weight = pf(kk).weight - max(pf(kk).weight);
-    lin_weight = exp(weight);
-    lin_weight = lin_weight/sum(lin_weight);
-    rb_est(:,kk) = (lin_weight * pf(kk).rb_mn')';
-    clut_indic(1,kk) = lin_weight * pf(kk).clut_indic';
-end
+% %% Fixed rate estimates
+% rb_est = zeros(model.dw, model.K);
+% clut_indic = zeros(1, model.K);
+% for kk = 1:model.K
+%     weight = pf(kk).weight - max(pf(kk).weight);
+%     lin_weight = exp(weight);
+%     lin_weight = lin_weight/sum(lin_weight);
+%     rb_est(:,kk) = (lin_weight * pf(kk).rb_mn')';
+%     clut_indic(1,kk) = lin_weight * pf(kk).clut_indic';
+% end
 
 end
 

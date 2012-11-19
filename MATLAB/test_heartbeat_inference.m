@@ -30,6 +30,7 @@ if ~exist('flags.batch', 'var') || (~flags.batch)
     % Set display options
     display.text = true;
     display.plot_during = false;
+    display.plot_after_frame = 0;
     if display.plot_during
         display.h_pf(1) = figure;
         display.h_pf(2) = figure;
@@ -44,9 +45,9 @@ end
 
 %% Load some data
 [time, observ] = load_and_calibrate(model.K, '../data/F_data1.mat', 'calibration.mat');
-time(1:5514) = []; time = time - time(1);
-observ(1:5514) = [];
-model.K = model.K - 5514;
+% time(1:5514) = []; time = time - time(1);
+% observ(1:5514) = [];
+% model.K = model.K - 5514;
 
 %% Run the particle filter
 [pf] = hearbeat_vrpf(display, algo, model, time, observ);
@@ -68,6 +69,7 @@ if (~flags.batch) && display.plot_after
     figure, hold on, cellfun(@(x,y) plot(x,y), pf_cp, pf_a);
     figure, hold on, cellfun(@(x,y) plot(x,y), pf_cp, pf_b);
     figure, hold on, cellfun(@(x) plot(x(2:end),diff(x)), pf_cp);
+    figure, hold on, cellfun(@(x,y) plot(x,y), pf_cp, pf_p), cellfun(@(x,y,z) plot(x,y+z,'m'), pf_cp, pf_p, pf_b), cellfun(@(x) plot(x(1:end-1),diff(x),'r'), pf_cp)
     figure, hold on, surf(rb_est), shading interp
     figure, hold on, plot(reconstructed,'b'), plot(observ, 'r')
     figure, hold on, plot(observ-reconstructed)

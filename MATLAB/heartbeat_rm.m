@@ -11,6 +11,7 @@ else
 end
 
 b = cp_param(3);
+% b = 0;
 
 new_surv_prob = log(1-gamcdf(current_time-cp_time, (ppsl_p+b)/model.tau_trans_scale, model.tau_trans_scale));
 old_surv_prob = log(1-gamcdf(current_time-cp_time, (cp_param(1)+b)/model.tau_trans_scale, model.tau_trans_scale));
@@ -37,8 +38,8 @@ if log(rand) < new_surv_prob-old_surv_prob
     cp_param(3) = ppsl_b;
 end
 
-% Propose a new value for the beat amplitude using MH
-
+% % Propose a new value for the beat amplitude using MH
+% 
 % if ~isnan(last_cp_time)
 %     
 %     % Make a vector of observations since the last changepoint and interpolate
