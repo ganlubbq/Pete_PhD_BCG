@@ -142,10 +142,10 @@ for kk = 2:K
             % Do a Kalman filter prediction
             [rb_mn, rb_vr] = kf_predict(last_rb_mn, last_rb_vr, eye(model.dw), model.w_trans_vr);            
 
-%             cp_rb_mn = rb_mn;
-%             cp_rb_vr = rb_vr;
-            cp_rb_mn = last_rb_mn;
-            cp_rb_vr = last_rb_vr;
+            cp_rb_mn = rb_mn;
+            cp_rb_vr = rb_vr;
+%             cp_rb_mn = last_rb_mn;
+%             cp_rb_vr = last_rb_vr;
 
         else
             % Changepoint has not occured - keep the previous estimates

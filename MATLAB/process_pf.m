@@ -16,12 +16,14 @@ rb_est = zeros(model.dw, model.K);
 reconstructed = zeros(algo.Nf,model.K);
 for ii = 1:algo.Nf
     anc = ii;
+    Ncp = pf(model.K).Ncp(ii) + 1;
     for kk = model.K:-1:1
         pf_clut(ii,kk) = pf(kk).clut_indic(anc);
         rb_est(:,kk) = rb_est(:,kk) + pf(kk).cp_rb_mn(:,anc)/algo.Nf;
         interp_vector = heartbeat_interpolation(algo, model, time(kk), pf(kk).cp_time(anc));
         reconstructed(ii,kk) = interp_vector*pf(kk).cp_rb_mn(:,anc);
-        if ~ismember( pf(kk).cp_time(anc), pf_cp{ii} )
+        if pf(kk).Ncp(anc) < Ncp
+            Ncp = Ncp - 1;
             pf_cp{ii} = [pf(kk).cp_time(anc) pf_cp{ii}];
             pf_p{ii} = [pf(kk).cp_param(1,anc) pf_p{ii}];
             pf_a{ii} = [pf(kk).cp_param(2,anc) pf_a{ii}];

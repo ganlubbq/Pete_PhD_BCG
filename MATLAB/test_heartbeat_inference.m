@@ -75,4 +75,8 @@ if (~flags.batch) && display.plot_after
     figure, hold on, plot(observ-reconstructed)
     figure, hold on, plot(mean(pf_clut));
     
+    H = heartbeat_interpolation(algo, model, (0:0.005:1.4)', 0);
+    smooth_wf = H*rb_est;
+    figure, surf(smooth_wf), shading interp
+    
 end
