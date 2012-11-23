@@ -16,7 +16,7 @@ model.p_prior_shape = 40;
 model.p_prior_scale = 0.03;
 model.a_prior_mn = 1;
 model.a_prior_vr = 1E-8;
-model.b_prior_mn = 0.2/sqrt(pi/2);
+model.b_prior_mn = 0.2;
 
 % Transition models
 model.tau_trans_scale = 1E-3; %3E-2           % Changepoint time transition density (gamma) scale (shape is given by p/scale)
@@ -24,10 +24,10 @@ model.p_trans_scale = 1E-4;   %1E-5           % Beat period transition density (
 % model.p_trans_vr = 0.01^2;              % Beat period transition density (normal) variance (mean is the previous value)
 % model.p_min = 0.4;                      % Minimum beat period
 model.a_trans_vr = 0.000005^2;              % Beat amplitude transition density (normal) variance (mean is the previous value)
-model.w_trans_vr = 0.01*eye(model.dw);  % Waveform transition density (normal) covariance matrix (mean is the previous value)
+model.w_trans_vr = 0.003*eye(model.dw);  % Waveform transition density (normal) covariance matrix (mean is the previous value)
 % model.waveform_smoothness = 2/model.fs;
 % model.w_trans_vr = 0.01*exp(-0.5*(1/model.fs)*abs(bsxfun(@minus, 1:model.dw, (1:model.dw)'))/model.waveform_smoothness);
-model.b_trans_mn = 0.2/sqrt(pi/2);                 % Breath delay density (exponential) mean
+model.b_trans_mn = 0.2;                 % Breath delay density (exponential) mean - SWITCHED THIS TO BEING RAYLEIGH, SO THIS IS NOW A SCALE PARAMETER, NOT THE MEAN
 
 % Clutter
 % model.pc = 1E-3;                           % Clutter probability
