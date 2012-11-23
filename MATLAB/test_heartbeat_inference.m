@@ -37,6 +37,7 @@ if ~exist('flags.batch', 'var') || (~flags.batch)
         display.h_pf(3) = figure;
         display.h_pf(4) = figure;
         display.h_pf(5) = figure;
+        display.h_pf(6) = figure;
     end
     display.plot_after = true;
     
@@ -45,9 +46,9 @@ end
 
 %% Load some data
 [time, observ] = load_and_calibrate(model.K, '../data/F_data1.mat', 'calibration.mat');
-% time(1:5514) = []; time = time - time(1);
-% observ(1:5514) = [];
-% model.K = model.K - 5514;
+% time(1:9000) = []; time = time - time(1);
+% observ(1:9000) = [];
+% model.K = model.K - 9000;
 
 %% Run the particle filter
 [pf] = hearbeat_vrpf(display, algo, model, time, observ);

@@ -1,4 +1,4 @@
-function [ cp_time, cp_param, rb_mn, rb_vr ] = heartbeat_rm( algo, model, cp_time, cp_param, cp_rb_mn, cp_rb_vr, last_cp_time, last_cp_param, current_time, time, observ, rb_mn, rb_vr )
+function [ cp_time, cp_param, rb_mn, rb_vr ] = heartbeat_rm( algo, model, kk, cp_time, cp_param, cp_rb_mn, cp_rb_vr, last_cp_time, last_cp_param, current_time, time, observ, rb_mn, rb_vr, cp_idx_start, clut_hist )
 %HEARTBEAT_RM Do some resample move on the latest changepoint
 
 % Propose a new value for the last changepoint time, restricting it to lie
@@ -6,12 +6,16 @@ function [ cp_time, cp_param, rb_mn, rb_vr ] = heartbeat_rm( algo, model, cp_tim
 
 if cp_time > 0
     
+    clut_indic = zeros(size(time));
+    clut_indic(cp_idx_start:kk) = flipud( clut_hist(1:kk+1-cp_idx_start) );
+    
     a = cp_param(2);
     
     % Make a vector of observations since the last changepoint and interpolate
     % the expected signal at these points
-    t_vec = time( (time<current_time)&(time>cp_time) );
-    y_vec = observ( (time<current_time)&(time>cp_time) )';
+    to_use = (time<=current_time)&(time>cp_time)&(clut_indic==0);
+    t_vec =   time( to_use );
+    y_vec = observ( to_use )';
     
     % Propose a change to the time
     t_min = max(time(time<cp_time));
@@ -39,12 +43,12 @@ if cp_time > 0
         cp_time = ppsl_cp_time;
     end
     
-    
 end
-    
+
+
+
 % Propose a new value for the beat period from the transition density
 % (Gibbs, so no acceptance probability needed.
-
 if any(isnan(last_cp_param))
     ppsl_p = gamrnd(model.p_prior_shape, model.p_prior_scale);
 else
@@ -61,13 +65,12 @@ if log(rand) < new_surv_prob-old_surv_prob
     cp_param(1) = ppsl_p;
 end
 
-% Propose a new value for the beat period from the transition density
+% Propose a new value for the beat period adjustment from the transition density
 % (Gibbs, so no acceptance probability needed.
-
 if any(isnan(last_cp_param))
-    ppsl_b = exprnd(model.b_prior_mn);
+    ppsl_b = raylrnd(model.b_prior_mn);
 else
-    ppsl_b = exprnd(model.b_trans_mn);
+    ppsl_b = raylrnd(model.b_trans_mn);
 end
 
 p = cp_param(1);

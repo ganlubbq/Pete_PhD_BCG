@@ -31,7 +31,7 @@ if (nargin<7)||isempty(cp_time)||isempty(cp_param)
 %         end
         cp_param(1) = gamrnd(last_cp_param(1)/model.p_trans_scale, model.p_trans_scale);
         cp_param(2) = mvnrnd(last_cp_param(2), model.a_trans_vr);
-        cp_param(3) = exprnd(model.b_trans_mn);
+        cp_param(3) = raylrnd(model.b_trans_mn);
 %         cp_param(3) = 0;
         
     else
