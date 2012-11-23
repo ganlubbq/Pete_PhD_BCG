@@ -13,7 +13,7 @@ if cp_time > 0
     
     % Make a vector of observations since the last changepoint and interpolate
     % the expected signal at these points
-    to_use = (time<=current_time)&(time>cp_time)&(clut_indic==0);
+    to_use = (clut_indic==0)&(time<=current_time)&(time>cp_time);
     t_vec =   time( to_use );
     y_vec = observ( to_use )';
     
@@ -70,7 +70,7 @@ end
 if any(isnan(last_cp_param))
     ppsl_b = raylrnd(model.b_prior_mn);
 else
-    ppsl_b = raylrnd(model.b_trans_mn);
+    ppsl_b = invgamrnd(model.b_trans_shape, model.b_trans_scale);
 end
 
 p = cp_param(1);

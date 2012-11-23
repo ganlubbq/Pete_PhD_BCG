@@ -51,7 +51,7 @@ end
 % model.K = model.K - 9000;
 
 %% Run the particle filter
-[pf] = hearbeat_vrpf(display, algo, model, time, observ);
+[pf, lhood_est] = hearbeat_vrpf(display, algo, model, time, observ);
 
 %% Evaluation
 [ cp_list, pf_cp, pf_p, pf_a, pf_b, pf_clut, rb_est, clut_indic, reconstructed ] = process_pf( algo, model, time, pf );
@@ -71,10 +71,11 @@ if (~flags.batch) && display.plot_after
     figure, hold on, cellfun(@(x,y) plot(x,y), pf_cp, pf_b);
     figure, hold on, cellfun(@(x) plot(x(2:end),diff(x)), pf_cp);
     figure, hold on, cellfun(@(x,y) plot(x,y), pf_cp, pf_p), cellfun(@(x,y,z) plot(x,y+z,'m'), pf_cp, pf_p, pf_b), cellfun(@(x) plot(x(1:end-1),diff(x),'r'), pf_cp)
-    figure, hold on, surf(rb_est), shading interp
-    figure, hold on, plot(reconstructed,'b'), plot(observ, 'r')
-    figure, hold on, plot(observ-reconstructed)
-    figure, hold on, plot(mean(pf_clut));
+    figure, hold on, surf(time, 1:model.dw, rb_est), shading interp
+    figure, hold on, plot(time, reconstructed,'b'), plot(time, observ, 'r')
+    figure, hold on, plot(time, observ-reconstructed)
+    figure, hold on, plot(time, mean(pf_clut));
+    figure, hold on, plot(time, lhood_est);
     
     H = heartbeat_interpolation(algo, model, (0:0.005:1.4)', 0);
     smooth_wf = H*rb_est;

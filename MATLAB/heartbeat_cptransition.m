@@ -31,7 +31,9 @@ if (nargin<7)||isempty(cp_time)||isempty(cp_param)
 %         end
         cp_param(1) = gamrnd(last_cp_param(1)/model.p_trans_scale, model.p_trans_scale);
         cp_param(2) = mvnrnd(last_cp_param(2), model.a_trans_vr);
-        cp_param(3) = raylrnd(model.b_trans_mn);
+%         cp_param(3) = exprnd(model.b_trans_mn);
+%         cp_param(3) = raylrnd(model.b_trans_mn);
+        cp_param(3) = invgamrnd(model.b_trans_shape, model.b_trans_scale);
 %         cp_param(3) = 0;
         
     else
@@ -52,7 +54,9 @@ if nargout>2
               -log(1-gamcdf(known_time-last_cp_time, (last_p+last_b)/model.tau_trans_scale, model.tau_trans_scale)) ...
               +loggampdf(cp_param(1), last_cp_param(1)/model.p_trans_scale, model.p_trans_scale) ...
               +loggausspdf(cp_param(2), last_cp_param(2), model.a_trans_vr) ...
-              +log(exppdf(cp_param(3), model.b_trans_mn));
+              +log(invgampdf(cp_param(3), model.b_trans_shape, model.b_trans_scale));
+%               +log(raylpdf(cp_param(3), model.b_trans_mn));
+%               +log(exppdf(cp_param(3), model.b_trans_mn));
 %         prob = log(gampdf(cp_time-last_cp_time, last_p/model.tau_trans_scale, model.tau_trans_scale)) ...
 %               -log(1-gamcdf(known_time-last_cp_time, last_p/model.tau_trans_scale, model.tau_trans_scale)) ...
 %               +loggausspdf(cp_param, last_cp_param, diag([model.p_trans_vr,  model.a_trans_vr])) ...

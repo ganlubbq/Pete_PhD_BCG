@@ -1,4 +1,4 @@
-function [ pf ] = hearbeat_vrpf( display, algo, model, time, observ )
+function [ pf, lhood_est ] = hearbeat_vrpf( display, algo, model, time, observ )
 %HEARBEAT_PF Run a particle filter to infer heartbeats from a BCG or ECG
 %signal.
 
@@ -20,6 +20,8 @@ function [ pf ] = hearbeat_vrpf( display, algo, model, time, observ )
 % Make local copies of useful numbers
 Nf = algo.Nf;
 K = model.K;
+
+lhood_est = zeros(1,K);
 
 % Initialise particle filter structure array
 pf = struct('Ncp', cell(K,1), ...                       Number of changepoints
@@ -120,6 +122,8 @@ for kk = 2:K
     pf(kk).clut_indic = zeros(1, Nf);
     pf(kk).clut_hist = zeros(100, Nf);
     pf(kk).last_clut = zeros(1, Nf);
+    
+    inc_weight = zeros(1,Nf);
     
     % Loop through particles
     for ii = 1:Nf
@@ -225,6 +229,7 @@ for kk = 2:K
         pf(kk).clut_hist(:,ii) = clut_hist;
         
         % Weight
+        inc_weight(ii) = lh_prob;
         if flag_resampling
             pf(kk).weight(ii) = pf(kk-1).weight(a_idx) - sampling_weights(a_idx) + lh_prob;
         else
@@ -265,6 +270,9 @@ for kk = 2:K
     pf(kk-1).rb_vr = [];
     pf(kk-1).cp_rb_vr = [];
     pf(kk-1).clut_hist = [];
+    
+    % Likelihood
+    lhood_est(kk) = logsumexp(inc_weight,2);
     
 end
 
