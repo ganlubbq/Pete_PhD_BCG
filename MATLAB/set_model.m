@@ -1,7 +1,7 @@
 % Set model parameters
 
 % Basics
-model.K = 18000;            % Number of observations
+model.K = 3000;            % Number of observations
 model.fs = 30;              % Sampling frequency of observations (after load_and_calibrate, which downsamples)
 model.dp = 3;               % Number of changepoint parameter dimensions (beat amplitude and period)
 model.dw = 40;              % Number of 
@@ -34,8 +34,8 @@ model.b_trans_scale = 0.4;
 % Clutter
 % model.pc = 1E-3;                           % Clutter probability
 model.clut_trans = [0.999 0.01; 0.001 0.99]; % Clutter indicator transition matrix
-model.min_noclut_length = 0;                   % Minimum number of frames between clutter observations
+model.min_noclut_length = 30;                   % Minimum number of frames between clutter observations
 model.y_clut_vr = 20^2;                    % Clutter observation variance
 
 % Observation model
-model.y_obs_vr = 0.2^2;                 % Observation variance
+model.y_obs_vr = 0.5^2;                 % Observation variance

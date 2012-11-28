@@ -46,9 +46,6 @@ end
 
 %% Load some data
 [time, observ] = load_and_calibrate(model.K, '../data/F_data1.mat', 'calibration.mat');
-% time(1:9000) = []; time = time - time(1);
-% observ(1:9000) = [];
-% model.K = model.K - 9000;
 
 %% Run the particle filter
 [pf, lhood_est] = hearbeat_vrpf(display, algo, model, time, observ);
@@ -58,7 +55,7 @@ end
 
 %% Plot graphs
 
-if (~flags.batch) && display.plot_after
+if (~exist('flags.batch', 'var')||(~flags.batch)) && display.plot_after
     
     figure, hold on
     plot(time, observ)

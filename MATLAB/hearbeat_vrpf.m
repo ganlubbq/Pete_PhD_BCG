@@ -92,6 +92,7 @@ for kk = 2:K
         sampling_weights = sampling_weights-max(sampling_weights);
         sampling_weights = exp(sampling_weights);
         sampling_weights = sampling_weights/sum(sampling_weights);
+        
 %         recent_jumps = pf(kk-1).cp_time > (time(kk)-10/model.fs);
 %         sampling_weights(recent_jumps) = 1/Nf;
 %         sampling_weights(~recent_jumps) = sampling_weights(~recent_jumps)*((Nf-sum(recent_jumps))/Nf)/sum(eps+sampling_weights(~recent_jumps));
@@ -198,19 +199,26 @@ for kk = 2:K
         
         % Calculate clutter proposal probabilities
         [rb_mn_noclut, rb_vr_noclut, ~, ~, ~, lh_noclut] = kf_update(rb_mn, rb_vr, observ(:,kk), H, model.y_obs_vr);
-        [rb_mn_clut,   rb_vr_clut,   ~, ~, ~, lh_clut  ] = kf_update(rb_mn, rb_vr, observ(:,kk), H, model.y_clut_vr);
-%         if kk-last_clut > model.min_noclut_length
+%         [rb_mn_clut,   rb_vr_clut,   ~, ~, ~, lh_clut  ] = kf_update(rb_mn, rb_vr, observ(:,kk), H, model.y_clut_vr);
+        rb_mn_clut = rb_mn; rb_vr_clut = rb_vr;
+        lh_clut = exp(loggausspdf(observ(:,kk), 0, model.y_clut_vr));
+        if (last_clut_indic==1) || (kk-last_clut>model.min_noclut_length)
             clut_prior = model.clut_trans(2, last_clut_indic+1);
-%         else
-%             clut_prior = 0;
-%         end
+        else
+            clut_prior = 1E-10;
+        end
 %         clut_prior = min( model.clut_trans(2, last_clut_indic+1), 10^(-(model.min_noclut_length+1-(kk-last_clut))) );
         clut_prob = [clut_prior * lh_clut; model.clut_trans(1, last_clut_indic+1)*lh_noclut];
         lh_prob = log(sum(clut_prob));
         clut_prob = clut_prob/sum(clut_prob);
         
         % Propose a value for the clutter indicator
-        clut_indic = rand<clut_prob(1);
+        clut_ppsl_prob = clut_prob(1);
+        if (last_clut_indic==1)
+            clut_ppsl_prob = max(clut_ppsl_prob, 0.2);
+        end
+        clut_indic = rand<clut_ppsl_prob;
+        lh_prob = lh_prob + log(clut_prob(1))-log(clut_ppsl_prob);
         
         % Store updated values
         if clut_indic == 0
