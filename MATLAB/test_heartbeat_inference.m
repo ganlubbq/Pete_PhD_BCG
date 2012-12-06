@@ -36,8 +36,8 @@ if ~exist('flags.batch', 'var') || (~flags.batch)
         display.h_pf(2) = figure;
         display.h_pf(3) = figure;
         display.h_pf(4) = figure;
-        display.h_pf(5) = figure;
-        display.h_pf(6) = figure;
+%         display.h_pf(5) = figure;
+%         display.h_pf(6) = figure;
     end
     display.plot_after = true;
     
@@ -48,34 +48,26 @@ end
 [time, observ] = load_and_calibrate(model.K, '../data/F_data1.mat', 'calibration.mat');
 
 %% Run the particle filter
-[pf, lhood_est] = hearbeat_vrpf(display, algo, model, time, observ);
+[pf, ps] = hearbeat_vrpf(display, algo, model, time, observ);
 
 %% Evaluation
-[ cp_list, pf_cp, pf_p, pf_a, pf_b, pf_clut, rb_est, clut_indic, reconstructed ] = process_pf( algo, model, time, pf );
 
 %% Plot graphs
 
 if (~exist('flags.batch', 'var')||(~flags.batch)) && display.plot_after
     
-    figure, hold on
-    plot(time, observ)
-    for ii = 1:algo.Nf
-        plot(pf_cp{ii}, zeros(size(pf_cp{ii})), 'r*')
-    end
-    
-    figure, hold on, cellfun(@(x,y) plot(x,y), pf_cp, pf_p);
-    figure, hold on, cellfun(@(x,y) plot(x,y), pf_cp, pf_a);
-    figure, hold on, cellfun(@(x,y) plot(x,y), pf_cp, pf_b);
-    figure, hold on, cellfun(@(x) plot(x(2:end),diff(x)), pf_cp);
-    figure, hold on, cellfun(@(x,y) plot(x,y), pf_cp, pf_p), cellfun(@(x,y,z) plot(x,y+z,'m'), pf_cp, pf_p, pf_b), cellfun(@(x) plot(x(1:end-1),diff(x),'r'), pf_cp)
-    figure, hold on, surf(time, 1:model.dw, rb_est), shading interp
-    figure, hold on, plot(time, reconstructed,'b'), plot(time, observ, 'r')
-    figure, hold on, plot(time, observ-reconstructed)
-    figure, hold on, plot(time, mean(pf_clut));
-    figure, hold on, plot(time, lhood_est);
-    
-    H = heartbeat_interpolation(algo, model, (0:0.005:1.4)', 0);
-    smooth_wf = H*rb_est;
-    figure, surf(smooth_wf), shading interp
+    figure, hold on, plot(time, observ), for ii = 1:algo.Nf, plot(ps(ii).cp_time, zeros(size(ps(ii).cp_time)), 'g*'), end
+    figure, surf(mean(cat(3,ps.rb_mn),3)), shading interp
+%     figure, hold on, cellfun(@(x,y) plot(x,y), pf_cp, pf_p);
+%     figure, hold on, cellfun(@(x,y) plot(x,y), pf_cp, pf_a);
+%     figure, hold on, cellfun(@(x,y) plot(x,y), pf_cp, pf_b);
+%     figure, hold on, cellfun(@(x) plot(x(2:end),diff(x)), pf_cp);
+%     figure, hold on, cellfun(@(x,y) plot(x,y), pf_cp, pf_p), cellfun(@(x,y,z) plot(x,y+z,'m'), pf_cp, pf_p, pf_b), cellfun(@(x) plot(x(1:end-1),diff(x),'r'), pf_cp)
+%     figure, hold on, surf(time, 1:model.dw, rb_est), shading interp
+%     figure, hold on, plot(time, reconstructed,'b'), plot(time, observ, 'r'), for ii = 1:algo.Nf, plot(pf_cp{ii}, zeros(size(pf_cp{ii})), 'g*'); end
+%     figure, hold on, plot(time, observ-reconstructed)
+%     figure, hold on, plot(time, mean(pf_clut));
+%     figure, hold on, plot(time, lhood_est);
+%     
     
 end

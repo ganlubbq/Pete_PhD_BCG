@@ -8,16 +8,13 @@ function [ cp_param, prob ] = heartbeat_cpparamprior( model, cp_param )
 if (nargin<2)||isempty(cp_param)
     cp_param = zeros(model.dp, 1);
     cp_param(1) = gamrnd(model.p_prior_shape, model.p_prior_scale);
-    cp_param(2) = mvnrnd(model.a_prior_mn, model.a_prior_vr);
-    cp_param(3) = exprnd(model.b_prior_mn);
-%     cp_param(3) = 0;
+%     cp_param(2) = invgamrnd(model.b_prior_shape, model.b_prior_scale);
 end
 
 % Calculate probability if required
 if nargout>1
-    prob = loggampdf(cp_param(1), model.p_prior_shape, model.p_prior_scale) ...
-         + loggausspdf(cp_param(2), model.a_prior_mn, model.a_prior_vr) ...
-         + log(exppdf(cp_param(3), model.b_prior_mn));
+    prob = loggampdf(cp_param(1), model.p_prior_shape, model.p_prior_scale);% ...
+%          + log(invgampdf(cp_param(2), model.b_prior_shape, model.b_prior_scale));
 else
     prob = [];
 end

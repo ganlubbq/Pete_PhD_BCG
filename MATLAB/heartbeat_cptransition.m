@@ -9,32 +9,27 @@ function [ cp_time, cp_param, prob ] = heartbeat_cptransition( model, last_cp_ti
 if (nargin<7)||isempty(cp_time)||isempty(cp_param)
     
     last_p = last_cp_param(1);
-    last_b = last_cp_param(3);
-%     last_b = 0;
+%     last_b = last_cp_param(2);
     
     % Rejection sample new changepoint time
-    lower_lim = gamcdf(known_time-last_cp_time, (last_p+last_b)/model.tau_trans_scale, model.tau_trans_scale);
-    if lower_lim < 1
-        u = unifrnd(lower_lim, 1);
-        cp_time = last_cp_time + gaminv(u, (last_p+last_b)/model.tau_trans_scale, model.tau_trans_scale);
-    else
-        % Distribution is pathologically peaky
-        cp_time = last_cp_time + (last_p+last_b);
-    end
+%     lower_lim = gamcdf(known_time-last_cp_time, (last_p+last_b)/model.tau_trans_scale, model.tau_trans_scale);
+%     if lower_lim < 1
+%         u = unifrnd(lower_lim, 1);
+%         cp_time = last_cp_time + gaminv(u, (last_p+last_b)/model.tau_trans_scale, model.tau_trans_scale);
+%     else
+%         % Distribution is pathologically peaky
+%         cp_time = last_cp_time + (last_p+last_b);
+%     end
+    lower_lim = invgamcdf(known_time-last_cp_time-last_p, model.tau_trans_shape, model.tau_trans_scale);
+    u = unifrnd(lower_lim, 1);
+    cp_time = last_cp_time + last_p + invgaminv(u, model.tau_trans_shape, model.tau_trans_scale);
     
     if cp_time < current_time
         
         % Sample a new parameter for the new changepoint
-%         cp_param = zeros(model.dp,1);
-%         while cp_param <= model.p_min
-%             cp_param(1) = mvnrnd(last_cp_param(1), model.p_trans_vr);
-%         end
+        cp_param = zeros(model.dp,1);
         cp_param(1) = gamrnd(last_cp_param(1)/model.p_trans_scale, model.p_trans_scale);
-        cp_param(2) = mvnrnd(last_cp_param(2), model.a_trans_vr);
-%         cp_param(3) = exprnd(model.b_trans_mn);
-%         cp_param(3) = raylrnd(model.b_trans_mn);
-        cp_param(3) = invgamrnd(model.b_trans_shape, model.b_trans_scale);
-%         cp_param(3) = 0;
+%         cp_param(2) = invgamrnd(model.b_trans_shape, model.b_trans_scale);
         
     else
         
@@ -48,19 +43,12 @@ end
 % Calculate probability if required
 if nargout>2
     if isempty(cp_time)
-        prob = log(1-gamcdf(known_time-last_cp_time, (last_p+last_b)/model.tau_trans_scale, model.tau_trans_scale));
+        prob = log(1-invgamcdf(known_time-last_cp_time-last_p, model.tau_trans_shape, model.tau_trans_scale));
     else
-        prob = loggampdf(cp_time-last_cp_time, (last_p+last_b)/model.tau_trans_scale, model.tau_trans_scale) ...
-              -log(1-gamcdf(known_time-last_cp_time, (last_p+last_b)/model.tau_trans_scale, model.tau_trans_scale)) ...
-              +loggampdf(cp_param(1), last_cp_param(1)/model.p_trans_scale, model.p_trans_scale) ...
-              +loggausspdf(cp_param(2), last_cp_param(2), model.a_trans_vr) ...
-              +log(invgampdf(cp_param(3), model.b_trans_shape, model.b_trans_scale));
-%               +log(raylpdf(cp_param(3), model.b_trans_mn));
-%               +log(exppdf(cp_param(3), model.b_trans_mn));
-%         prob = log(gampdf(cp_time-last_cp_time, last_p/model.tau_trans_scale, model.tau_trans_scale)) ...
-%               -log(1-gamcdf(known_time-last_cp_time, last_p/model.tau_trans_scale, model.tau_trans_scale)) ...
-%               +loggausspdf(cp_param, last_cp_param, diag([model.p_trans_vr,  model.a_trans_vr])) ...
-%               -log(1-normcdf(model.p_min, last_cp_param(1), model.p_trans_vr));
+        prob = log(invgampdf(cp_time-last_cp_time-last_p, model.tau_trans_shape, model.tau_trans_scale)) ...
+              -log(1-invgamcdf(known_time-last_cp_time-last_p, model.tau_trans_shape, model.tau_trans_scale)) ...
+              +loggampdf(cp_param(1), last_p/model.p_trans_scale, model.p_trans_scale);% ...
+%               +log(invgampdf(cp_param(2), model.b_trans_shape, model.b_trans_scale));
     end
 else
     prob = [];

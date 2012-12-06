@@ -1,5 +1,7 @@
 % Set algorithm options
 
-algo.Nf = 200;           % Number of particle filter particles
-algo.resam_type = 1;      % 0 = multinomial. 1 = systematic.
-algo.no_resamp_period = 2*model.dw;    % Number of frames before resampling starts
+algo.Nf = 200;                              % Number of particle filter particles
+algo.resam_type = 2;                        % 1 = multinomial. 2 = systematic.
+algo.Nps = 100;                             % Number of pilot samples
+algo.L = 50;                                % Pilot sampling horizon
+algo.S = 25;                                % Observation batch size

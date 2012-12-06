@@ -1,288 +1,268 @@
-function [ pf, lhood_est ] = hearbeat_vrpf( display, algo, model, time, observ )
+function [ pf, ps ] = hearbeat_vrpf( display, algo, model, time, observ )
 %HEARBEAT_PF Run a particle filter to infer heartbeats from a BCG or ECG
 %signal.
 
-% This is a BOOTSTRAP variable rate particle filter
-%
-% The nonlinear states for estimation are the beat times, the pulse and the
-% beat amplitude. An additional changepoint parameters, the beat waveform
+% The changepoint paramters for estimation are the beat periods and
+% adjustments. An additional changepoint parameter, the beat waveform
 % is Rao-blackwellised.
-
-% pf(k).cp_time  is a cell array containing the changepoint time(s) sampled
-%                for this particle between time(k-1) and time(k). time(0)=0.
-% pf(k).cp_param contains the corresponding changepoint parameters in row 
-%                vectors. So cp_param{ii}(:,c) corresponds to
-%                cp_time{ii}(c)
-% pf(k).rb_mn and pf(k).rb_vr contain the mean and covariance of the
-%                Gaussian density for w given observations 1:k.
-% Ancestors and weights as usual particle filter
 
 % Make local copies of useful numbers
 Nf = algo.Nf;
 K = model.K;
 
-lhood_est = zeros(1,K);
+% Number of particle filter steps we need to run
+M = ceil(K/algo.S)+1;
 
-% Initialise particle filter structure array
-pf = struct('Ncp', cell(K,1), ...                       Number of changepoints
-            'cp_time', cell(K,1), ...           Most recent changepoint...
-            'cp_param', cell(K,1), ...          ... and the corresponding parameters ...
-            'cp_idx_start', cell(K,1), ...      ... and the index of the first of the subsequent observations
-            'last_cp_time', cell(K,1), ...      Changepoint before that ...
-            'last_cp_param', cell(K,1), ...     ... and the corresponding parameters
-            'clut_indic', cell(K,1), ...        Clutter indicator variable
-            'last_clut', cell(K,1), ...         Index of last frame in which clutter occured
-            'clut_hist', cell(K,1), ...         Clutter indexes since the last changepoint
-            'rb_mn', cell(K,1), ...             Mean of the Rao-Blackwellised bit
-            'rb_vr', cell(K,1), ...             (Co)variance of the Rao-Blackwellised bit
-            'ancestor', cell(K,1), ...          Ancestor particle
-            'weight', cell(K,1));
-pf(1).cp_time = repmat({0}, 1, Nf);
-pf(1).cp_param = repmat({zeros(model.dp,1)}, 1, Nf);
-pf(1).Ncp = ones(1, Nf);
-pf(1).cp_time = zeros(1, Nf);
-pf(1).cp_param = zeros(model.dp, Nf);
-pf(1).cp_idx_start = zeros(1, Nf);
-pf(1).last_cp_time = NaN(1, Nf);
-pf(1).last_cp_param = NaN(model.dp, Nf);
-pf(1).clut_indic = zeros(1, Nf);
-pf(1).last_clut = -inf(1, Nf);
-pf(1).clut_hist = zeros(100, Nf);
-pf(1).rb_mn = zeros(model.dw, Nf);
-pf(1).rb_vr = zeros(model.dw, model.dw, Nf);
-pf(1).cp_rb_mn = zeros(model.dw, Nf);
-pf(1).cp_rb_vr = zeros(model.dw, model.dw, Nf);
-pf(1).ancestor = zeros(1, Nf);
-pf(1).weight = zeros(1, Nf);
+% Create particle filter structure arrays
+[ps] = init_ps(algo, model);
 
 if display.text
     fprintf(1, 'Particle filter time step %u.\n', 1);
 end
 
-% Sample initial changepoint from prior
+%%% Initial particle filter step
+
+% Time indexes
+L = algo.L;
+S = algo.S;
+kk = 1 - S;
+
+% Inialise strucutre
+pf = init_pf(algo, model, algo.L);
+
+% Loop through particles
 for ii = 1:Nf
-    [pf(1).cp_param(:,ii), ~] = heartbeat_cpparamprior(model);
-    pf(1).rb_mn(:,ii) = model.w_prior_mn;
-    pf(1).rb_vr(:,:,ii) = model.w_prior_vr;
+    
+    % Sample parameter from prior
+    [cp_param, ~] = heartbeat_cpparamprior(model);
+    pf(ii).pre_cp_param(:) = cp_param;
+    
+    % Linear state and likelihood
+    pf(ii).win_rb_mn(:,S) = model.w_prior_mn;
+    pf(ii).win_rb_vr(:,:,S) = model.w_prior_vr;
+    rb_mn = model.w_prior_mn;
+    rb_vr = model.w_prior_vr;
+    for ll = S+1:L
+        
+        H = heartbeat_interpolation(algo, model, time(kk+ll), 0);
+        [rb_mn, rb_vr, ~,~,~, lhood] = log_kf_update(rb_mn, rb_vr, observ(kk+ll), H, model.y_obs_vr);
+        
+        pf(ii).win_rb_mn(:,ll) = rb_mn;
+        pf(ii).win_rb_vr(:,:,ll) = rb_vr;
+        pf(ii).win_obslhood(ll) = lhood;
+        
+    end
+    
 end
 
 % Loop through time
-for kk = 2:K
+for mm = 2:M
+    
+    last_pf = pf;
+    last_ps = ps;
+    
+    % Time indexes
+    kk = kk + algo.S;
+    L = min(algo.L, K-kk);
+    S = min(algo.S, K-kk);
     
     if display.text
-        fprintf(1, 'Particle filter time step %u.\n', kk);
+        fprintf(1, 'Particle filter time step %u.\n', mm);
     end
     
-    % Diagnostics
+%     % Diagnostics
     diagnostic_lastest_cp_time = zeros(1,Nf);
     diagnostic_lastest_cp_param = zeros(model.dp,Nf);
-    diagnostic_last_clut = zeros(1,Nf);
+%     diagnostic_last_clut = zeros(1,Nf);
     
-    % Shall we resample this frame?
-%     if rem(kk,1)==0
-    if kk > algo.no_resamp_period
-        flag_resampling = true;
-    else
-        flag_resampling = false;
-    end
+    % Initialise pf frame
+    pf = init_pf(algo, model, L);
     
     % Sample ancestors
-    if flag_resampling
-        sampling_weights = pf(kk-1).weight;
-        sampling_weights = sampling_weights-max(sampling_weights);
-        sampling_weights = exp(sampling_weights);
-        sampling_weights = sampling_weights/sum(sampling_weights);
-        
-%         recent_jumps = pf(kk-1).cp_time > (time(kk)-10/model.fs);
-%         sampling_weights(recent_jumps) = 1/Nf;
-%         sampling_weights(~recent_jumps) = sampling_weights(~recent_jumps)*((Nf-sum(recent_jumps))/Nf)/sum(eps+sampling_weights(~recent_jumps));
-        
-%         sampling_weights = max(sampling_weights, 1);
-%         sampling_weights = sampling_weights/sum(sampling_weights);
-%         low_weights = sampling_weights < (1/Nf);
-%         sampling_weights(low_weights) = 1/Nf;
-%         sampling_weights(~low_weights) = sampling_weights(~low_weights)*((Nf-sum(low_weights))/Nf)/sum(sampling_weights(~low_weights));
-
-        sampling_weights = log(sampling_weights);
-        pf(kk).ancestor = sample_weights(algo, sampling_weights, Nf);
-    else
-        pf(kk).ancestor = 1:Nf;
-    end
-    
-    % Initialise arrays
-    pf(kk).weight = zeros(1, Nf);
-    pf(kk).rb_mn = zeros(model.dw, Nf);
-    pf(kk).rb_vr = zeros(model.dw, model.dw, Nf);
-    pf(kk).cp_time = zeros(1, Nf);
-    pf(kk).cp_param = zeros(model.dp, Nf);
-    pf(kk).cp_idx_start = zeros(1, Nf);
-    pf(kk).cp_rb_mn = zeros(model.dw, Nf);
-    pf(kk).cp_rb_vr = zeros(model.dw, model.dw, Nf);
-    pf(kk).last_cp_time = zeros(1, Nf);
-    pf(kk).last_cp_param = zeros(model.dp, Nf);
-    pf(kk).clut_indic = zeros(1, Nf);
-    pf(kk).clut_hist = zeros(100, Nf);
-    pf(kk).last_clut = zeros(1, Nf);
-    
-    inc_weight = zeros(1,Nf);
+    sampling_weight = [last_pf.weight];
+    ancestor = sample_weights(algo, sampling_weight, Nf);
     
     % Loop through particles
     for ii = 1:Nf
         
         % Get ancestor index
-        a_idx = pf(kk).ancestor(ii);
+        a_idx = ancestor(ii);
+        pf(ii).ancestor = a_idx;
         
-        % Get most recent changepoint
-        latest_cp_time = pf(kk-1).cp_time(a_idx);
-        latest_cp_param = pf(kk-1).cp_param(:,a_idx);
-        latest_cp_rb_mn = pf(kk-1).cp_rb_mn(:,a_idx);
-        latest_cp_rb_vr = pf(kk-1).cp_rb_vr(:,:,a_idx);
-        
-        % Get last rb estimate
-        last_rb_mn = pf(kk-1).rb_mn(:,a_idx);
-        last_rb_vr = pf(kk-1).rb_vr(:,:,a_idx);
-        
-        % Get clutter indicator
-        last_clut_indic = pf(kk-1).clut_indic(a_idx);
-        last_clut = pf(kk-1).last_clut(a_idx);
-        clut_hist = pf(kk-1).clut_hist(:,a_idx);
-        
-        % Sample changepoint transition density
-        [ cp_time, cp_param, ~ ] = heartbeat_cptransition(model, latest_cp_time, latest_cp_param, time(kk-1), time(kk));
-        
-        if ~isempty(cp_time)
-            % Changepoint has occured!
-            
-            % Changepoint shift
-            last_cp_time = latest_cp_time;
-            last_cp_param = latest_cp_param;
-            cp_idx_start = kk;
-            Ncp = pf(kk-1).Ncp(a_idx) + 1;
-            
-            % Do a Kalman filter prediction
-            [rb_mn, rb_vr] = kf_predict(last_rb_mn, last_rb_vr, eye(model.dw), model.w_trans_vr);            
-
-            cp_rb_mn = rb_mn;
-            cp_rb_vr = rb_vr;
-%             cp_rb_mn = last_rb_mn;
-%             cp_rb_vr = last_rb_vr;
-
+        % Copy forward
+        if ~isempty(last_pf(a_idx).win_cp_time) && (last_pf(a_idx).win_cp_time<time(kk))
+            pf(ii).pre_cp_time = last_pf(a_idx).win_cp_time;
+            pf(ii).pre_cp_param = last_pf(a_idx).win_cp_param;
         else
-            % Changepoint has not occured - keep the previous estimates
-            rb_mn = last_rb_mn;
-            rb_vr = last_rb_vr;
-            cp_time = latest_cp_time;
-            cp_param = latest_cp_param;
-            cp_rb_mn = latest_cp_rb_mn;
-            cp_rb_vr = latest_cp_rb_vr;
-            last_cp_time = pf(kk-1).last_cp_time(a_idx);
-            last_cp_param = pf(kk-1).last_cp_param(:,a_idx);
-            Ncp = pf(kk-1).Ncp(a_idx);
-            cp_idx_start = pf(kk-1).cp_idx_start(a_idx);
+            pf(ii).pre_cp_time = last_pf(a_idx).pre_cp_time;
+            pf(ii).pre_cp_param = last_pf(a_idx).pre_cp_param;
+        end
+        pf(ii).pre_rb_mn = last_pf(a_idx).win_rb_mn(:,S);
+        pf(ii).pre_rb_vr = last_pf(a_idx).win_rb_vr(:,:,S);
+        pf(ii).pre_clut = last_pf(a_idx).win_clut(S);
+        
+        % Sample changepoints in the window
+        [cp_time, cp_param, new_trans_prob]  = heartbeat_cptransition(model, pf(ii).pre_cp_time, pf(ii).pre_cp_param, time(kk), time(kk+L));
+        pf(ii).win_cp_time = cp_time;
+        pf(ii).win_cp_param = cp_param;
+        
+        % Find old transition prob
+        last_cp_time = last_pf(a_idx).pre_cp_time;
+        last_cp_param = last_pf(a_idx).pre_cp_param;
+        if last_pf(a_idx).win_cp_time < time(kk)
+            last_cp_time = last_pf(a_idx).win_cp_time;
+            last_cp_param = last_pf(a_idx).win_cp_param;
+        end
+        [~, ~, old_trans_prob]  = heartbeat_cptransition(model, last_cp_time, last_cp_param, time(kk), time(kk+L));
+        
+        % Loop through observations
+        last_cp_time = pf(ii).pre_cp_time;
+        rb_mn = pf(ii).pre_rb_mn;
+        rb_vr = pf(ii).pre_rb_vr;
+        for ll = 1:L
             
+            % Update changepoint if we've past one
+            if time(kk+ll) > pf(ii).win_cp_time
+                last_cp_time = pf(ii).win_cp_time;
+                last_cp_param = pf(ii).win_cp_param;
+            end
+            
+            % interpolation and Kalman filtering
+            H = heartbeat_interpolation(algo, model, time(kk+ll), last_cp_time);
+            [rb_mn, rb_vr, ~,~,~, lhood] = log_kf_update(rb_mn, rb_vr, observ(kk+ll), H, model.y_obs_vr);
+            pf(ii).win_rb_mn(:,ll) = rb_mn;
+            pf(ii).win_rb_vr(:,:,ll) = rb_vr;
+            pf(ii).win_obslhood(ll) = lhood;
         end
         
-        % Store the latest changepoints
-        pf(kk).cp_time(ii) = cp_time;
-        pf(kk).cp_param(:,ii) = cp_param;
-        pf(kk).cp_idx_start(ii) = cp_idx_start;
-        pf(kk).cp_rb_mn(:,ii) = cp_rb_mn;
-        pf(kk).cp_rb_vr(:,:,ii) = cp_rb_vr;
-        pf(kk).last_cp_time(ii) = last_cp_time;
-        pf(kk).last_cp_param(:,ii) = last_cp_param;
-        pf(kk).Ncp(ii) = Ncp;
-        
-        % Linear observation and update bit
-        
-        % Interpolation vector
-        H = cp_param(2)*heartbeat_interpolation(algo, model, time(kk), cp_time);
-        
-        % Calculate clutter proposal probabilities
-        [rb_mn_noclut, rb_vr_noclut, ~, ~, ~, lh_noclut] = kf_update(rb_mn, rb_vr, observ(:,kk), H, model.y_obs_vr);
-%         [rb_mn_clut,   rb_vr_clut,   ~, ~, ~, lh_clut  ] = kf_update(rb_mn, rb_vr, observ(:,kk), H, model.y_clut_vr);
-        rb_mn_clut = rb_mn; rb_vr_clut = rb_vr;
-        lh_clut = exp(loggausspdf(observ(:,kk), 0, model.y_clut_vr));
-        if (last_clut_indic==1) || (kk-last_clut>model.min_noclut_length)
-            clut_prior = model.clut_trans(2, last_clut_indic+1);
-        else
-            clut_prior = 1E-10;
-        end
-%         clut_prior = min( model.clut_trans(2, last_clut_indic+1), 10^(-(model.min_noclut_length+1-(kk-last_clut))) );
-        clut_prob = [clut_prior * lh_clut; model.clut_trans(1, last_clut_indic+1)*lh_noclut];
-        lh_prob = log(sum(clut_prob));
-        clut_prob = clut_prob/sum(clut_prob);
-        
-        % Propose a value for the clutter indicator
-        clut_ppsl_prob = clut_prob(1);
-        if (last_clut_indic==1)
-            clut_ppsl_prob = max(clut_ppsl_prob, 0.2);
-        end
-        clut_indic = rand<clut_ppsl_prob;
-        lh_prob = lh_prob + log(clut_prob(1))-log(clut_ppsl_prob);
-        
-        % Store updated values
-        if clut_indic == 0
-            pf(kk).rb_mn(:,ii) = rb_mn_noclut;
-            pf(kk).rb_vr(:,:,ii) = rb_vr_noclut;
-            pf(kk).clut_indic(ii) = 0;
-            pf(kk).last_clut(ii) = last_clut;
-            clut_hist = [0; clut_hist(1:end-1)];
-        else
-            pf(kk).rb_mn(:,ii) = rb_mn_clut;
-            pf(kk).rb_vr(:,:,ii) = rb_vr_clut;
-            pf(kk).clut_indic(ii) = 1;
-            pf(kk).last_clut(ii) = kk;
-            clut_hist = [1; clut_hist(1:end-1)];
-        end
-        pf(kk).clut_hist(:,ii) = clut_hist;
+        % Likelihoods
+        new_lhood = sum(pf(ii).win_obslhood);
+        old_lhood = sum(last_pf(a_idx).win_obslhood(S+1:end));
         
         % Weight
-        inc_weight(ii) = lh_prob;
-        if flag_resampling
-            pf(kk).weight(ii) = pf(kk-1).weight(a_idx) - sampling_weights(a_idx) + lh_prob;
-        else
-            pf(kk).weight(ii) = pf(kk-1).weight(a_idx) + lh_prob;
-        end
-        
-        % MH Kernel
-        [cp_time, cp_param, rb_mn, rb_vr] = heartbeat_rm(algo, model, kk, cp_time, cp_param, cp_rb_mn, cp_rb_vr, last_cp_time, last_cp_param, time(kk), time, observ, pf(kk).rb_mn(:,ii), pf(kk).rb_vr(:,:,ii), cp_idx_start, clut_hist );
-        pf(kk).cp_time(ii) = cp_time;
-        pf(kk).cp_param(:,ii) = cp_param;
-        pf(kk).rb_mn(:,ii) = rb_mn;
-        pf(kk).rb_vr(:,:,ii) = rb_vr;
+        pf(ii).weight = (new_lhood - old_lhood);
         
         % Diagnostics
-        diagnostic_lastest_cp_time(ii) = cp_time;
-        diagnostic_lastest_cp_param(:,ii) = cp_param;
-        diagnostic_last_clut(ii) = pf(kk).last_clut(ii);
+        diagnostic_lastest_cp_time(ii) = last_cp_time;
+        diagnostic_lastest_cp_param(:,ii) = last_cp_param;
+    end
+    
+    assert(~any(isnan(pf(mm).weight)));
+    assert(~all(isinf(pf(mm).weight)));
+    
+    % Particle smoother
+    for ii = 1:Nf
+        
+        ps(ii) = last_ps(a_idx);
+        if pf(ii).win_cp_time < time(kk+S);
+            ps(ii).Ncp = ps(ii).Ncp + 1;
+            ps(ii).cp_time(ps(ii).Ncp) = pf(ii).win_cp_time;
+            ps(ii).cp_param(:,ps(ii).Ncp) = pf(ii).win_cp_param;
+        end
+        ps(ii).rb_mn(:,kk+1:kk+S) = pf(ii).win_rb_mn(:,1:S);
         
     end
     
-    diagnostic_last_clut(isinf(diagnostic_last_clut))=0;
-    
-    assert(~any(isnan(pf(kk).weight)));
-    assert(~all(isinf(pf(kk).weight)));
-    
     % Diagnostics
-    if display.plot_during && (kk>display.plot_after_frame)
+    if display.plot_during && (M>display.plot_after_frame)
         figure(display.h_pf(1)); clf; hold on; hist(diagnostic_lastest_cp_time, 100);
         figure(display.h_pf(2)); clf; hold on; hist(diagnostic_lastest_cp_param(1,:), 100);
         figure(display.h_pf(3)); clf; hold on; hist(diagnostic_lastest_cp_param(2,:), 100);
-        figure(display.h_pf(4)); clf; hold on; hist(diagnostic_lastest_cp_param(3,:), 100);
-        figure(display.h_pf(5)); clf; hold on; plot(pf(kk).rb_mn);
-        figure(display.h_pf(6)); clf; hold on; hist(diagnostic_last_clut, 100);
+%         figure(display.h_pf(4)); clf; hold on; hist(diagnostic_lastest_cp_param(3,:), 100);
+        figure(display.h_pf(4)); clf; hold on; plot( cell2mat(arrayfun(@(x) {x.win_rb_mn(:,end)}, pf')) );
+%         figure(display.h_pf(5)); clf; hold on; hist(diagnostic_last_clut, 100);
         pause
     end
     
-    % Clear last particles (to save memory)
-    pf(kk-1).rb_vr = [];
-    pf(kk-1).cp_rb_vr = [];
-    pf(kk-1).clut_hist = [];
-    
-    % Likelihood
-    lhood_est(kk) = logsumexp(inc_weight,2);
-    
 end
 
+% Resample smoother samples
+sampling_weight = [pf.weight];
+ancestor = sample_weights(algo, sampling_weight, Nf);
+ps = ps(ancestor);
+
 end
+
+
+
+
+
+
+function [ps] = init_ps(algo, model)
+% Initialise particle smoother structure
+
+Nf = algo.Nf;
+K = model.K;
+
+ps = struct('Ncp', cell(Nf,1), ...
+            'cp_time', cell(Nf,1), ...
+            'cp_param', cell(Nf,1), ...
+            'rb_mn', cell(Nf,1));
+
+[ps.Ncp] = deal(0);
+[ps.cp_time] = deal(zeros(1,0));
+[ps.cp_param] = deal(zeros(model.dp,0));
+[ps.rb_mn] = deal(zeros(model.dw,model.K));
+
+% max_cp = K/20;
+% ps = struct('Ncp', ones(1,Nf), ...
+%             'cp_time', zeros(max_cp,Nf), ...
+%             'cp_param', zeros(model.dp, max_cp, Nf), ...
+%             'rb_mn', zeros(model.dw, K, Nf));
+
+end
+
+function [pf] = init_pf(algo, model, L)
+% Initialise particle smoother structure
+
+Nf = algo.Nf;
+K = model.K;
+M = ceil(K/algo.S)+1;
+
+pf = struct('pre_cp_time', cell(Nf,1), ...          Most recent changepoint to occur before the window ...
+            'pre_cp_param', cell(Nf,1), ...         ... and the corresponding parameters
+            'pre_rb_mn', cell(Nf,1), ...            Mean of the Rao-Blackwellised bit before the window
+            'pre_rb_vr', cell(Nf,1), ...            (Co)variance of the Rao-Blackwellised bit before the window
+            'pre_clut', cell(Nf,1), ...             Clutter indicator variable for the most recent observation before the window
+            'win_Ncp', cell(Nf,1), ...              Number of changepoints in the window
+            'win_cp_time', cell(Nf,1), ...          Changepoints occuring within the window ...
+            'win_cp_param', cell(Nf,1), ...         ... and the corresponding parameters.
+            'win_rb_mn', cell(Nf,1), ...            Mean of the Rao-Blackwellised bit during the window
+            'win_rb_vr', cell(Nf,1), ...            (Co)variance of the Rao-Blackwellised bit during the window
+            'win_clut', cell(Nf,1), ...             Clutter indicators for the observations in the window
+            'win_obslhood', cell(Nf,1), ...         Observation likelihoods during the window
+            'ancestor', cell(Nf,1), ...             Ancestor particle
+            'weight', cell(Nf,1));%                 Particle weight
+
+[pf.pre_cp_time] = deal(0);
+[pf.pre_cp_param] = deal(zeros(model.dp,1));
+[pf.pre_rb_mn] = deal(zeros(model.dw,1));
+[pf.pre_rb_vr] = deal(zeros(model.dw,model.dw,1));
+[pf.pre_clut] = deal(0);
+[pf.win_cp_time] = deal(zeros(1,0));
+[pf.win_cp_param] = deal(zeros(2,0));
+[pf.win_rb_mn] = deal(zeros(model.dw,L));
+[pf.win_rb_vr] = deal(zeros(model.dw,model.dw,L));
+[pf.win_clut] = deal(zeros(1,L));
+[pf.win_obslhood] = deal(zeros(1,L));
+[pf.ancestor] = deal(0);
+[pf.weight] = deal(0);
+
+% pf = struct('pre_cp_time', zeros(1, Nf), ...                        Most recent changepoint to occur before the window ...
+%             'pre_cp_param', zeros(model.dp, Nf), ...                ... and the corresponding parameters
+%             'pre_rb_mn', zeros(model.dw, Nf), ...                   Mean of the Rao-Blackwellised bit before the window
+%             'pre_rb_vr', zeros(model.dw, model.dw, Nf), ...         (Co)variance of the Rao-Blackwellised bit before the window
+%             'pre_clut', zeros(1, Nf), ...                           Clutter indicator variable for the most recent observation before the window
+%             'win_Ncp', zeros(1, Nf), ...                            Number of changepoints in the window
+%             'win_cp_time', NaN(1, Nf), ...                          Changepoints occuring within the window ...
+%             'win_cp_param', NaN(model.dp, Nf), ...                  ... and the corresponding parameters.
+%             'win_rb_mn', zeros(model.dw, L, Nf), ...                Mean of the Rao-Blackwellised bit during the window
+%             'win_rb_vr', zeros(model.dw, model.dw, L, Nf), ...      (Co)variance of the Rao-Blackwellised bit during the window
+%             'win_clut', zeros(L, Nf), ...                           Clutter indicators for the observations in the window
+%             'win_obslhood', zeros(L, Nf), ...                       Observation likelihoods during the window
+%             'ancestor', zeros(1, Nf), ...                           Ancestor particle
+%             'weight', zeros(1, Nf));%                               Particle weight
+
+end
+
 
