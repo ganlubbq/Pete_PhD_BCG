@@ -93,13 +93,24 @@ for mm = 2:M
         if ~isempty(last_pf(a_idx).win_cp_time) && (last_pf(a_idx).win_cp_time<time(kk))
             pf(ii).pre_cp_time = last_pf(a_idx).win_cp_time;
             pf(ii).pre_cp_param = last_pf(a_idx).win_cp_param;
+            pf(ii).ante_cp_time = last_pf(a_idx).pre_cp_time;
+            pf(ii).ante_cp_param = last_pf(a_idx).pre_cp_param;
         else
             pf(ii).pre_cp_time = last_pf(a_idx).pre_cp_time;
             pf(ii).pre_cp_param = last_pf(a_idx).pre_cp_param;
+            pf(ii).ante_cp_time = last_pf(a_idx).ante_cp_time;
+            pf(ii).ante_cp_param = last_pf(a_idx).ante_cp_param;
         end
         pf(ii).pre_rb_mn = last_pf(a_idx).win_rb_mn(:,S);
         pf(ii).pre_rb_vr = last_pf(a_idx).win_rb_vr(:,:,S);
         pf(ii).pre_clut = last_pf(a_idx).win_clut(S);
+        
+        % Sample a new parameter for the preceeding changepoint
+        if isempty(pf(ii).ante_cp_time)
+            pf(ii).pre_cp_param = heartbeat_cpparamprior(model);
+        else
+            [~, pf(ii).pre_cp_param]  = heartbeat_cptransition(model, pf(ii).ante_cp_time, pf(ii).ante_cp_param, 0, inf);
+        end
         
         % Sample changepoints in the window
         [cp_time, cp_param, new_trans_prob]  = heartbeat_cptransition(model, pf(ii).pre_cp_time, pf(ii).pre_cp_param, time(kk), time(kk+L));
@@ -119,6 +130,7 @@ for mm = 2:M
         last_cp_time = pf(ii).pre_cp_time;
         rb_mn = pf(ii).pre_rb_mn;
         rb_vr = pf(ii).pre_rb_vr;
+        clut_indic = pf(ii).pre_clut;
         for ll = 1:L
             
             % Update changepoint if we've past one
@@ -127,15 +139,37 @@ for mm = 2:M
                 last_cp_param = pf(ii).win_cp_param;
             end
             
-            % interpolation and Kalman filtering
+%             % interpolation and Kalman filtering
+%             H = heartbeat_interpolation(algo, model, time(kk+ll), last_cp_time);
+%             [rb_mn, rb_vr, ~, s_mn, s_vr, lhood] = log_kf_update(rb_mn, rb_vr, observ(kk+ll), H, model.y_obs_vr);
+
+            % Interpolation and Kalman filtering
             H = heartbeat_interpolation(algo, model, time(kk+ll), last_cp_time);
-            [rb_mn, rb_vr, ~, s_mn, s_vr, lhood] = log_kf_update(rb_mn, rb_vr, observ(kk+ll), H, model.y_obs_vr);
+            [noclut_rb_mn, noclut_rb_vr, ~, s_mn, s_vr, noclut_lhood] = log_kf_update(rb_mn, rb_vr, observ(kk+ll), H, model.y_obs_vr);
             
+            % Clutter sampling
+            clut_rb_mn = rb_mn; clut_rb_vr = rb_vr;
+            clut_lhood = loggausspdf(observ(kk+ll), 0, model.y_clut_vr);
+            clut_prob = [log(model.clut_trans(2, clut_indic+1)) + clut_lhood; log(model.clut_trans(1, clut_indic+1)) + noclut_lhood];
+            lhood = logsumexp(clut_prob);
+            clut_prob = clut_prob - lhood;
+            clut_indic = log(rand)<clut_prob(1);
+            if clut_indic
+                rb_mn = clut_rb_mn;
+                rb_vr = clut_rb_vr;
+            else
+                rb_mn = noclut_rb_mn;
+                rb_vr = noclut_rb_vr;
+            end
+
+            % Store everything
             pf(ii).win_rb_mn(:,ll) = rb_mn;
             pf(ii).win_rb_vr(:,:,ll) = rb_vr;
             pf(ii).win_obslhood(ll) = lhood;
             pf(ii).win_signal_mn(ll) = s_mn;
             pf(ii).win_signal_vr(ll) = s_vr;
+            pf(ii).win_clut(ll) = clut_indic;
+
         end
         
         % Likelihoods
@@ -159,22 +193,26 @@ for mm = 2:M
         a_idx = pf(ii).ancestor;
         
         ps(ii) = last_ps(a_idx);
+        if ps(ii).Ncp > 0
+            ps(ii).cp_time(ps(ii).Ncp) = pf(ii).pre_cp_time;
+        end
         if pf(ii).win_cp_time < time(kk+S);
             ps(ii).Ncp = ps(ii).Ncp + 1;
             ps(ii).cp_time(ps(ii).Ncp) = pf(ii).win_cp_time;
             ps(ii).cp_param(:,ps(ii).Ncp) = pf(ii).win_cp_param;
         end
         ps(ii).rb_mn(:,kk+1:kk+S) = pf(ii).win_rb_mn(:,1:S);
+        ps(ii).clut(kk+1:kk+S) = pf(ii).win_clut(1:S);
         ps(ii).signal_mn(kk+1:kk+S) = pf(ii).win_signal_mn(1:S);
         ps(ii).signal_vr(kk+1:kk+S) = pf(ii).win_signal_vr(1:S);
         
     end
     
     % Diagnostics
-    if display.plot_during && (M>display.plot_after_frame)
+    if display.plot_during && (mm>display.plot_after_frame)
         figure(display.h_pf(1)); clf; hold on; hist(diagnostic_lastest_cp_time, 100);
         figure(display.h_pf(2)); clf; hold on; hist(diagnostic_lastest_cp_param(1,:), 100);
-        figure(display.h_pf(3)); clf; hold on; hist(diagnostic_lastest_cp_param(2,:), 100);
+%         figure(display.h_pf(3)); clf; hold on; hist(diagnostic_lastest_cp_param(2,:), 100);
 %         figure(display.h_pf(4)); clf; hold on; hist(diagnostic_lastest_cp_param(3,:), 100);
         figure(display.h_pf(4)); clf; hold on; plot( cell2mat(arrayfun(@(x) {x.win_rb_mn(:,end)}, pf')) );
 %         figure(display.h_pf(5)); clf; hold on; hist(diagnostic_last_clut, 100);
@@ -205,6 +243,7 @@ ps = struct('Ncp', cell(Nf,1), ...                  Number of changepoints over 
             'cp_time', cell(Nf,1), ...              Changepoint times ...
             'cp_param', cell(Nf,1), ...             ... and the associated parameters
             'rb_mn', cell(Nf,1), ...                Mean of the Rao-Blackwellised bit over all time
+            'clut', cell(Nf,1), ...                 Clutter over all time
             'signal_mn', cell(Nf,1), ...            Predicted signal mean over all time
             'signal_vr', cell(Nf,1));%              Predicted signal variance over all time
 
@@ -224,6 +263,8 @@ M = ceil(K/algo.S)+1;
 
 pf = struct('pre_cp_time', cell(Nf,1), ...          Most recent changepoint to occur before the window ...
             'pre_cp_param', cell(Nf,1), ...         ... and the corresponding parameters
+            'ante_cp_time', cell(Nf,1), ...         Next most recent changepoint to occur before the window ...
+            'ante_cp_param', cell(Nf,1), ...        ... and the corresponding parameters
             'pre_rb_mn', cell(Nf,1), ...            Mean of the Rao-Blackwellised bit before the window
             'pre_rb_vr', cell(Nf,1), ...            (Co)variance of the Rao-Blackwellised bit before the window
             'pre_clut', cell(Nf,1), ...             Clutter indicator variable for the most recent observation before the window
@@ -249,8 +290,8 @@ pf = struct('pre_cp_time', cell(Nf,1), ...          Most recent changepoint to o
 [pf.win_rb_mn] = deal(zeros(model.dw,L));
 [pf.win_rb_vr] = deal(zeros(model.dw,model.dw,L));
 [pf.win_clut] = deal(zeros(1,L));
-[pf.win_siganl_mn] = deal(zeros(1,L));
-[pf.win_siganl_vr] = deal(zeros(1,L));
+[pf.win_signal_mn] = deal(zeros(1,L));
+[pf.win_signal_vr] = deal(zeros(1,L));
 [pf.win_obslhood] = deal(zeros(1,L));
 [pf.ancestor] = deal(0);
 [pf.weight] = deal(0);

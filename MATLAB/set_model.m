@@ -1,7 +1,7 @@
 % Set model parameters
 
 % Basics
-model.K = 1000;                                  % Number of observations
+model.K = 18000;                                  % Number of observations
 model.fs = 30;                                  % Sampling frequency of observations (after load_and_calibrate, which downsamples)
 model.dp = 1;                                   % Number of changepoint parameter dimensions (beat period)
 model.dw = 40;                                  % Number of samples in the beat waveform
@@ -26,7 +26,7 @@ model.w_trans_vr = 0.003*eye(model.dw);         % Waveform transition density (n
 
 % Clutter
 model.clut_trans = [0.999 0.1; 0.001 0.9];      % Clutter indicator transition matrix
-model.y_clut_vr = 20^2;                         % Clutter observation variance
+model.y_clut_vr = 10^2;                         % Clutter observation variance
 
 % Observation model
-model.y_obs_vr = 0.5^2;                         % Observation variance
+model.y_obs_vr = 0.2^2;                         % Observation variance
