@@ -17,7 +17,7 @@ M = ceil(K/algo.S)+1;
 [ps] = init_ps(algo, model);
 
 if display.text
-    fprintf(1, 'Particle filter time step %u.\n', 1);
+    fprintf(1, 'Particle filter iteration %u.\n', 1);
 end
 
 %%% Initial particle filter step
@@ -67,7 +67,7 @@ for mm = 2:M
     S = min(algo.S, K-kk);
     
     if display.text
-        fprintf(1, 'Particle filter time step %u.\n', mm);
+        fprintf(1, 'Particle filter iteration %u of %u, using a window of %f to %f (indexes %u to %u)\n', mm, M, time(kk), time(kk+L), kk, kk+L);
     end
     
 %     % Diagnostics
@@ -129,10 +129,13 @@ for mm = 2:M
             
             % interpolation and Kalman filtering
             H = heartbeat_interpolation(algo, model, time(kk+ll), last_cp_time);
-            [rb_mn, rb_vr, ~,~,~, lhood] = log_kf_update(rb_mn, rb_vr, observ(kk+ll), H, model.y_obs_vr);
+            [rb_mn, rb_vr, ~, s_mn, s_vr, lhood] = log_kf_update(rb_mn, rb_vr, observ(kk+ll), H, model.y_obs_vr);
+            
             pf(ii).win_rb_mn(:,ll) = rb_mn;
             pf(ii).win_rb_vr(:,:,ll) = rb_vr;
             pf(ii).win_obslhood(ll) = lhood;
+            pf(ii).win_signal_mn(ll) = s_mn;
+            pf(ii).win_signal_vr(ll) = s_vr;
         end
         
         % Likelihoods
@@ -153,6 +156,8 @@ for mm = 2:M
     % Particle smoother
     for ii = 1:Nf
         
+        a_idx = pf(ii).ancestor;
+        
         ps(ii) = last_ps(a_idx);
         if pf(ii).win_cp_time < time(kk+S);
             ps(ii).Ncp = ps(ii).Ncp + 1;
@@ -160,6 +165,8 @@ for mm = 2:M
             ps(ii).cp_param(:,ps(ii).Ncp) = pf(ii).win_cp_param;
         end
         ps(ii).rb_mn(:,kk+1:kk+S) = pf(ii).win_rb_mn(:,1:S);
+        ps(ii).signal_mn(kk+1:kk+S) = pf(ii).win_signal_mn(1:S);
+        ps(ii).signal_vr(kk+1:kk+S) = pf(ii).win_signal_vr(1:S);
         
     end
     
@@ -194,21 +201,17 @@ function [ps] = init_ps(algo, model)
 Nf = algo.Nf;
 K = model.K;
 
-ps = struct('Ncp', cell(Nf,1), ...
-            'cp_time', cell(Nf,1), ...
-            'cp_param', cell(Nf,1), ...
-            'rb_mn', cell(Nf,1));
+ps = struct('Ncp', cell(Nf,1), ...                  Number of changepoints over all time
+            'cp_time', cell(Nf,1), ...              Changepoint times ...
+            'cp_param', cell(Nf,1), ...             ... and the associated parameters
+            'rb_mn', cell(Nf,1), ...                Mean of the Rao-Blackwellised bit over all time
+            'signal_mn', cell(Nf,1), ...            Predicted signal mean over all time
+            'signal_vr', cell(Nf,1));%              Predicted signal variance over all time
 
 [ps.Ncp] = deal(0);
 [ps.cp_time] = deal(zeros(1,0));
 [ps.cp_param] = deal(zeros(model.dp,0));
 [ps.rb_mn] = deal(zeros(model.dw,model.K));
-
-% max_cp = K/20;
-% ps = struct('Ncp', ones(1,Nf), ...
-%             'cp_time', zeros(max_cp,Nf), ...
-%             'cp_param', zeros(model.dp, max_cp, Nf), ...
-%             'rb_mn', zeros(model.dw, K, Nf));
 
 end
 
@@ -230,6 +233,8 @@ pf = struct('pre_cp_time', cell(Nf,1), ...          Most recent changepoint to o
             'win_rb_mn', cell(Nf,1), ...            Mean of the Rao-Blackwellised bit during the window
             'win_rb_vr', cell(Nf,1), ...            (Co)variance of the Rao-Blackwellised bit during the window
             'win_clut', cell(Nf,1), ...             Clutter indicators for the observations in the window
+            'win_signal_mn', cell(Nf,1),...         Predicted mean of the signal over the window
+            'win_signal_vr', cell(Nf,1),...         Predicted variance of the signal over the window
             'win_obslhood', cell(Nf,1), ...         Observation likelihoods during the window
             'ancestor', cell(Nf,1), ...             Ancestor particle
             'weight', cell(Nf,1));%                 Particle weight
@@ -244,24 +249,11 @@ pf = struct('pre_cp_time', cell(Nf,1), ...          Most recent changepoint to o
 [pf.win_rb_mn] = deal(zeros(model.dw,L));
 [pf.win_rb_vr] = deal(zeros(model.dw,model.dw,L));
 [pf.win_clut] = deal(zeros(1,L));
+[pf.win_siganl_mn] = deal(zeros(1,L));
+[pf.win_siganl_vr] = deal(zeros(1,L));
 [pf.win_obslhood] = deal(zeros(1,L));
 [pf.ancestor] = deal(0);
 [pf.weight] = deal(0);
-
-% pf = struct('pre_cp_time', zeros(1, Nf), ...                        Most recent changepoint to occur before the window ...
-%             'pre_cp_param', zeros(model.dp, Nf), ...                ... and the corresponding parameters
-%             'pre_rb_mn', zeros(model.dw, Nf), ...                   Mean of the Rao-Blackwellised bit before the window
-%             'pre_rb_vr', zeros(model.dw, model.dw, Nf), ...         (Co)variance of the Rao-Blackwellised bit before the window
-%             'pre_clut', zeros(1, Nf), ...                           Clutter indicator variable for the most recent observation before the window
-%             'win_Ncp', zeros(1, Nf), ...                            Number of changepoints in the window
-%             'win_cp_time', NaN(1, Nf), ...                          Changepoints occuring within the window ...
-%             'win_cp_param', NaN(model.dp, Nf), ...                  ... and the corresponding parameters.
-%             'win_rb_mn', zeros(model.dw, L, Nf), ...                Mean of the Rao-Blackwellised bit during the window
-%             'win_rb_vr', zeros(model.dw, model.dw, L, Nf), ...      (Co)variance of the Rao-Blackwellised bit during the window
-%             'win_clut', zeros(L, Nf), ...                           Clutter indicators for the observations in the window
-%             'win_obslhood', zeros(L, Nf), ...                       Observation likelihoods during the window
-%             'ancestor', zeros(1, Nf), ...                           Ancestor particle
-%             'weight', zeros(1, Nf));%                               Particle weight
 
 end
 

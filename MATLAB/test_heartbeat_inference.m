@@ -56,18 +56,15 @@ end
 
 if (~exist('flags.batch', 'var')||(~flags.batch)) && display.plot_after
     
-    figure, hold on, plot(time, observ), for ii = 1:algo.Nf, plot(ps(ii).cp_time, zeros(size(ps(ii).cp_time)), 'g*'), end
     figure, surf(mean(cat(3,ps.rb_mn),3)), shading interp
-%     figure, hold on, cellfun(@(x,y) plot(x,y), pf_cp, pf_p);
-%     figure, hold on, cellfun(@(x,y) plot(x,y), pf_cp, pf_a);
-%     figure, hold on, cellfun(@(x,y) plot(x,y), pf_cp, pf_b);
-%     figure, hold on, cellfun(@(x) plot(x(2:end),diff(x)), pf_cp);
-%     figure, hold on, cellfun(@(x,y) plot(x,y), pf_cp, pf_p), cellfun(@(x,y,z) plot(x,y+z,'m'), pf_cp, pf_p, pf_b), cellfun(@(x) plot(x(1:end-1),diff(x),'r'), pf_cp)
-%     figure, hold on, surf(time, 1:model.dw, rb_est), shading interp
-%     figure, hold on, plot(time, reconstructed,'b'), plot(time, observ, 'r'), for ii = 1:algo.Nf, plot(pf_cp{ii}, zeros(size(pf_cp{ii})), 'g*'); end
-%     figure, hold on, plot(time, observ-reconstructed)
-%     figure, hold on, plot(time, mean(pf_clut));
-%     figure, hold on, plot(time, lhood_est);
-%     
+    figure, hold on, arrayfun(@(x) plot(x.cp_time,x.cp_param(1,:)), ps); 
+                     arrayfun(@(x) plot(x.cp_time(2:end), diff(x.cp_time), 'r'), ps);
+    figure, hold on, plot(time, observ, 'r'),
+                     plot(time, mean(cat(1,ps.signal_mn),1), 'b'),
+                     plot(time, mean(cat(1,ps.signal_mn),1)+2*sqrt(mean(cat(1,ps.signal_vr),1)), ':b'),
+                     plot(time, mean(cat(1,ps.signal_mn),1)-2*sqrt(mean(cat(1,ps.signal_vr),1)), ':b'),
+                     plot(unique(cat(2,ps.cp_time)), zeros(size(unique(cat(2,ps.cp_time)))), 'g*');
+    figure, hold on, plot(time, observ-mean(cat(1,ps.signal_mn),1), 'm');
+    figure, hold on, plot(time, mean(cat(1,ps.clut),1));
     
 end
