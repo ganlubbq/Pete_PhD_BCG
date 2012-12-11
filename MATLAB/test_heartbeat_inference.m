@@ -46,6 +46,11 @@ end
 
 %% Load some data
 [time, observ] = load_and_calibrate(model.K, '../data/F_data1.mat', 'calibration.mat');
+% offset = 9002;
+% time(1:offset) = [];
+% time = time - time(1);
+% observ(1:offset) = [];
+% model.K = model.K - offset;
 
 %% Run the particle filter
 [pf, ps] = hearbeat_vrpf(display, algo, model, time, observ);

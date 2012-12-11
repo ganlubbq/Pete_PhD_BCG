@@ -1,7 +1,7 @@
 % Set model parameters
 
 % Basics
-model.K = 18000;                                  % Number of observations
+model.K = 2000;                                  % Number of observations
 model.fs = 30;                                  % Sampling frequency of observations (after load_and_calibrate, which downsamples)
 model.dp = 1;                                   % Number of changepoint parameter dimensions (beat period)
 model.dw = 40;                                  % Number of samples in the beat waveform
@@ -22,10 +22,10 @@ model.b_prior_scale = 0.4;
 model.tau_trans_shape = 3;                      % Changepoint time transition density (shifted inverse-gamma) shape paramter
 model.tau_trans_scale = 0.4;                    % Changepoint time transition density (shifted inverse-gamma) scale paramter
 model.p_trans_scale = 1E-4;                     % Beat period transition density (gamma) scale (shape is the previous value/scale)
-model.w_trans_vr = 0.003*eye(model.dw);         % Waveform transition density (normal) covariance matrix (mean is the previous value)
+model.w_trans_vr = 0.0001*eye(model.dw);         % Waveform transition density (normal) covariance matrix (mean is the previous value)
 
 % Clutter
-model.clut_trans = [0.999 0.1; 0.001 0.9];      % Clutter indicator transition matrix
+model.clut_trans = [0.001 0.9; 0.999 0.1];      % Clutter indicator transition matrix
 model.y_clut_vr = 10^2;                         % Clutter observation variance
 
 % Observation model
