@@ -29,12 +29,12 @@ if ~exist('flags.batch', 'var') || (~flags.batch)
     
     % Set display options
     display.text = true;
-    display.plot_during = false;
+    display.plot_during = true;
     display.plot_after_frame = 0;
     if display.plot_during
         display.h_pf(1) = figure;
         display.h_pf(2) = figure;
-        display.h_pf(3) = figure;
+%         display.h_pf(3) = figure;
         display.h_pf(4) = figure;
 %         display.h_pf(5) = figure;
 %         display.h_pf(6) = figure;

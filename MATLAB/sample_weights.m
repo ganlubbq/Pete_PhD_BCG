@@ -1,6 +1,6 @@
-function [ ancestor ] = sample_weights( algo, weight, N )
+function [ ancestor, selected_weight ] = sample_weights( algo, weight, N )
 %SAMPLE_WEIGHTS Samples an array of N ancestor indexes from a set of
-%weights
+%weights. Also (optionally), the weights of the ancesors.
 
 % Row vectors only here, please
 weight = weight(:)';
@@ -31,6 +31,11 @@ end
 % Draw particles
 [~, ancestor] = histc(idx,edges);
 ancestor = ancestor';
+
+% Selected weights
+if nargout > 1
+    selected_weight = log(weight(ancestor));
+end
 
 end
 

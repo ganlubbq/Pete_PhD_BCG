@@ -27,15 +27,24 @@ L = algo.L;
 S = algo.S;
 kk = 1 - S;
 
-% Inialise strucutre
+% Inialise structure
 pf = init_pf(algo, model, algo.L);
 
-% Loop through particles
+% First PF iteration
 for ii = 1:Nf
     
+    % Sample uniform time (prior)
+    last_cp_time = unifrnd(model.tau_prior_lower,0);
+    pf(ii).pre_cp_time = last_cp_time;
+    
     % Sample parameter from prior
-    [cp_param, ~] = heartbeat_cpparamprior(model);
-    pf(ii).pre_cp_param(:) = cp_param;
+    [last_cp_param, ~] = heartbeat_cpparamprior(model);
+    pf(ii).pre_cp_param = last_cp_param;
+    
+    % Sample changepoints in the window and find transition prob
+    [cp_time, cp_param, ~]  = heartbeat_cptransition(model, last_cp_time, last_cp_param, 0, time(kk+L));
+    pf(ii).win_cp_time = cp_time;
+    pf(ii).win_cp_param = cp_param;
     
     % Linear state and likelihood
     pf(ii).win_rb_mn(:,S) = model.w_prior_mn;
@@ -44,7 +53,14 @@ for ii = 1:Nf
     rb_vr = model.w_prior_vr;
     for ll = S+1:L
         
-        H = heartbeat_interpolation(algo, model, time(kk+ll), 0);
+        % Update changepoint if we've past one
+        if time(kk+ll) > pf(ii).win_cp_time
+            last_cp_time = pf(ii).win_cp_time;
+            last_cp_param = pf(ii).win_cp_param;
+            rb_vr = rb_vr + model.w_trans_vr;
+        end
+        
+        H = heartbeat_interpolation(algo, model, time(kk+ll), last_cp_time);
         [rb_mn, rb_vr, ~, s_mn, s_vr] = kf_update(rb_mn, rb_vr, observ(kk+ll), H, model.y_obs_vr);
         lhood = loggausspdf(observ(kk+ll), s_mn, s_vr);
         
@@ -53,6 +69,8 @@ for ii = 1:Nf
         pf(ii).win_obslhood(ll) = lhood;
         
     end
+    
+    pf(ii).weight = sum(pf(ii).win_obslhood);
     
 end
 
@@ -82,6 +100,7 @@ for mm = 2:M
     % Sample ancestors
     sampling_weight = [last_pf.weight];
     ancestor = sample_weights(algo, sampling_weight, Nf);
+%     length(unique(ancestor))
     
     % Loop through particles
     for ii = 1:Nf
@@ -111,12 +130,20 @@ for mm = 2:M
         end
         pf(ii).pre_last_clut = last_clut;
         
-        % Sample a new parameter for the preceeding changepoint
+        %%% CHANGEPOINT SAMPLING %%%
+        
+        % Sample a new parameter for the preceeding changepoint (resample move)
         if isempty(pf(ii).ante_cp_time)
-            pf(ii).pre_cp_param = heartbeat_cpparamprior(model);
+            rm_pre_cp_param = heartbeat_cpparamprior(model);
         else
-            [~, pf(ii).pre_cp_param]  = heartbeat_cptransition(model, pf(ii).ante_cp_time, pf(ii).ante_cp_param, 0, inf);
+            [~, rm_pre_cp_param]  = heartbeat_cptransition(model, pf(ii).ante_cp_time, pf(ii).ante_cp_param, 0, inf);
         end
+%         old_tp = log(1 - invgamcdf(time(kk)-pf(ii).pre_cp_time-pf(ii).pre_cp_param, model.tau_trans_shape, model.tau_trans_scale));
+%         new_tp = log(1 - invgamcdf(time(kk)-pf(ii).pre_cp_time-rm_pre_cp_param, model.tau_trans_shape, model.tau_trans_scale));
+%         ap = new_tp-old_tp;
+%         if log(rand)<ap
+%             pf(ii).pre_cp_param = rm_pre_cp_param;
+%         end
         
         % Sample changepoints in the window and find transition prob
         [cp_time, cp_param, new_trans_prob]  = heartbeat_cptransition(model, pf(ii).pre_cp_time, pf(ii).pre_cp_param, time(kk), time(kk+L));
@@ -132,6 +159,8 @@ for mm = 2:M
         end
         [~, ~, old_trans_prob]  = heartbeat_cptransition(model, last_cp_time, last_cp_param, time(kk), time(kk+L));
         
+        %%% Clutter and likelihood %%%
+
         % Loop through observations
         last_cp_time = pf(ii).pre_cp_time;
         rb_mn = pf(ii).pre_rb_mn;
@@ -167,10 +196,10 @@ for mm = 2:M
             if clut_indic
                 rb_mn = clut_rb_mn;
                 rb_vr = clut_rb_vr;
+                last_clut = kk;
             else
                 rb_mn = noclut_rb_mn;
                 rb_vr = noclut_rb_vr;
-                last_clut = kk;
             end
 
             % Store everything

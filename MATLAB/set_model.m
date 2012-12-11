@@ -1,17 +1,18 @@
 % Set model parameters
 
 % Basics
-model.K = 2000;                                  % Number of observations
+model.K = 250;                                  % Number of observations
 model.fs = 30;                                  % Sampling frequency of observations (after load_and_calibrate, which downsamples)
 model.dp = 1;                                   % Number of changepoint parameter dimensions (beat period)
 model.dw = 40;                                  % Number of samples in the beat waveform
 
 % Priors
+model.tau_prior_lower = -1;
 % load('template_beat.mat');
 % model.w_prior_mn = template;
-% model.w_prior_vr = 0.1*eye(model.dw, model.dw);
-model.w_prior_mn = zeros(model.dw,1);
-model.w_prior_vr = 10*eye(model.dw, model.dw);
+% model.w_prior_vr = 0.1*eye(model.dw);
+model.w_prior_mn = zeros(model.dw,1); model.w_prior_mn(10:11) = 1;
+model.w_prior_vr = 0.5^2*eye(model.dw); % model.w_prior_vr = 0.5^2*ones(1,model.dw); model.w_prior_vr(10:11) = 0.1; model.w_prior_vr = diag(model.w_prior_vr);
 model.p_prior_shape = 40;
 model.p_prior_scale = 0.03;
 model.b_prior_shape = 3;
