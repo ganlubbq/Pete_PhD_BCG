@@ -7,12 +7,13 @@ model.dp = 1;                                   % Number of changepoint paramete
 model.dw = 40;                                  % Number of samples in the beat waveform
 
 % Priors
-model.tau_prior_lower = -1;
-% load('template_beat.mat');
-% model.w_prior_mn = template;
-% model.w_prior_vr = 0.1*eye(model.dw);
-model.w_prior_mn = zeros(model.dw,1); model.w_prior_mn(10:11) = 1;
-model.w_prior_vr = 0.5^2*eye(model.dw); % model.w_prior_vr = 0.5^2*ones(1,model.dw); model.w_prior_vr(10:11) = 0.1; model.w_prior_vr = diag(model.w_prior_vr);
+model.tau_prior_lower = -3;
+load('template_beat.mat');
+template = [template zeros(1,model.dw-length(template))];
+model.w_prior_mn = template';
+model.w_prior_vr = 0.5^2*eye(model.dw);
+% model.w_prior_mn = zeros(model.dw,1); model.w_prior_mn(11) = 1; model.w_prior_mn(15) = -1;
+% model.w_prior_vr = 0.5^2*eye(model.dw); %model.w_prior_vr(10,10) = 0.01;
 model.p_prior_shape = 40;
 model.p_prior_scale = 0.03;
 model.b_prior_shape = 3;
@@ -23,7 +24,7 @@ model.b_prior_scale = 0.4;
 model.tau_trans_shape = 3;                      % Changepoint time transition density (shifted inverse-gamma) shape paramter
 model.tau_trans_scale = 0.4;                    % Changepoint time transition density (shifted inverse-gamma) scale paramter
 model.p_trans_scale = 1E-4;                     % Beat period transition density (gamma) scale (shape is the previous value/scale)
-model.w_trans_vr = 0.0001*eye(model.dw);         % Waveform transition density (normal) covariance matrix (mean is the previous value)
+model.w_trans_vr = 0.01*eye(model.dw);         % Waveform transition density (normal) covariance matrix (mean is the previous value)
 
 % Clutter
 model.clut_trans = [0.001 0.9; 0.999 0.1];      % Clutter indicator transition matrix

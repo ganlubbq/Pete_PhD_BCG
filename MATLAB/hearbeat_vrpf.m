@@ -14,7 +14,7 @@ K = model.K;
 M = ceil(K/algo.S)+1;
 
 % Create particle filter structure arrays
-[ps] = init_ps(algo, model);
+ps = init_ps(algo, model);
 
 if display.text
     fprintf(1, 'Particle filter iteration %u.\n', 1);
@@ -33,16 +33,24 @@ pf = init_pf(algo, model, algo.L);
 % First PF iteration
 for ii = 1:Nf
     
-    % Sample uniform time (prior)
-    last_cp_time = unifrnd(model.tau_prior_lower,0);
-    pf(ii).pre_cp_time = last_cp_time;
-    
     % Sample parameter from prior
     [last_cp_param, ~] = heartbeat_cpparamprior(model);
     pf(ii).pre_cp_param = last_cp_param;
     
-    % Sample changepoints in the window and find transition prob
-    [cp_time, cp_param, ~]  = heartbeat_cptransition(model, last_cp_time, last_cp_param, 0, time(kk+L));
+    % Sample interval from transition density
+    [tau01, cp_param, ~]  = heartbeat_cptransition(model, 0, last_cp_param, 0, inf);
+    
+    % Sample a time for the changepoint before time 0
+    last_cp_time = unifrnd(-tau01,0);
+%     last_cp_time = 0;
+    pf(ii).pre_cp_time = last_cp_time;
+    
+    % Find the changepoint time after time 0
+    cp_time = last_cp_time + tau01;
+    if cp_time > time(kk+L)
+        cp_time = [];
+        cp_param = [];
+    end
     pf(ii).win_cp_time = cp_time;
     pf(ii).win_cp_param = cp_param;
     
@@ -54,9 +62,8 @@ for ii = 1:Nf
     for ll = S+1:L
         
         % Update changepoint if we've past one
-        if time(kk+ll) > pf(ii).win_cp_time
+        if ~isempty(pf(ii).win_cp_time) && (time(kk+ll) > pf(ii).win_cp_time) && (last_cp_time < pf(ii).win_cp_time)
             last_cp_time = pf(ii).win_cp_time;
-            last_cp_param = pf(ii).win_cp_param;
             rb_vr = rb_vr + model.w_trans_vr;
         end
         
@@ -138,12 +145,12 @@ for mm = 2:M
         else
             [~, rm_pre_cp_param]  = heartbeat_cptransition(model, pf(ii).ante_cp_time, pf(ii).ante_cp_param, 0, inf);
         end
-%         old_tp = log(1 - invgamcdf(time(kk)-pf(ii).pre_cp_time-pf(ii).pre_cp_param, model.tau_trans_shape, model.tau_trans_scale));
-%         new_tp = log(1 - invgamcdf(time(kk)-pf(ii).pre_cp_time-rm_pre_cp_param, model.tau_trans_shape, model.tau_trans_scale));
-%         ap = new_tp-old_tp;
-%         if log(rand)<ap
-%             pf(ii).pre_cp_param = rm_pre_cp_param;
-%         end
+        old_tp = log(1 - invgamcdf(time(kk)-pf(ii).pre_cp_time-pf(ii).pre_cp_param, model.tau_trans_shape, model.tau_trans_scale));
+        new_tp = log(1 - invgamcdf(time(kk)-pf(ii).pre_cp_time-rm_pre_cp_param, model.tau_trans_shape, model.tau_trans_scale));
+        ap = new_tp-old_tp;
+        if log(rand)<ap
+            pf(ii).pre_cp_param = rm_pre_cp_param;
+        end
         
         % Sample changepoints in the window and find transition prob
         [cp_time, cp_param, new_trans_prob]  = heartbeat_cptransition(model, pf(ii).pre_cp_time, pf(ii).pre_cp_param, time(kk), time(kk+L));
@@ -169,7 +176,7 @@ for mm = 2:M
         for ll = 1:L
             
             % Update changepoint if we've past one
-            if time(kk+ll) > pf(ii).win_cp_time
+            if ~isempty(pf(ii).win_cp_time) && (time(kk+ll) > pf(ii).win_cp_time) && (last_cp_time < pf(ii).win_cp_time)
                 last_cp_time = pf(ii).win_cp_time;
                 last_cp_param = pf(ii).win_cp_param;
                 rb_vr = rb_vr + model.w_trans_vr;
@@ -254,7 +261,9 @@ for mm = 2:M
         figure(display.h_pf(2)); clf; hold on; hist(diagnostic_lastest_cp_param(1,:), 100);
 %         figure(display.h_pf(3)); clf; hold on; hist(diagnostic_lastest_cp_param(2,:), 100);
 %         figure(display.h_pf(4)); clf; hold on; hist(diagnostic_lastest_cp_param(3,:), 100);
-        figure(display.h_pf(4)); clf; hold on; plot( cell2mat(arrayfun(@(x) {x.win_rb_mn(:,end)}, pf')) );
+        figure(display.h_pf(3)); clf; hold on; plot( cell2mat(arrayfun(@(x) {x.win_rb_mn(:,end)}, pf')) );
+        figure(display.h_pf(4)); clf; hold on; plot( cat(1,pf.win_signal_mn)' ); plot(observ(kk+1:kk+L),'linewidth',3);
+        figure(display.h_pf(5)); clf; hold on; plot( cat(2,pf.pre_rb_mn) );
 %         figure(display.h_pf(5)); clf; hold on; hist(diagnostic_last_clut, 100);
         pause
     end
