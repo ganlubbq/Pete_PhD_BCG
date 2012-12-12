@@ -78,9 +78,9 @@ for mm = 1:M
         pf(ii).pre_rb_mn = last_pf(a_idx).win_rb_mn(:,S);
         pf(ii).pre_rb_vr = last_pf(a_idx).win_rb_vr(:,:,S);
         pf(ii).pre_clut = last_pf(a_idx).win_clut(S);
-        last_clut = find(last_pf(a_idx).win_clut(1:S)==1,1,'last');
+        last_clut = kk + find(last_pf(a_idx).win_clut(1:S)==1,1,'last');
         if isempty(last_clut)
-            last_clut = pf(ii).pre_last_clut;
+            last_clut = last_pf(a_idx).pre_last_clut;
         end
         pf(ii).pre_last_clut = last_clut;
         
@@ -144,7 +144,7 @@ for mm = 1:M
             % Clutter sampling
             clut_rb_mn = rb_mn; clut_rb_vr = rb_vr;
             clut_lhood = loggausspdf(observ(kk+ll), 0, model.y_clut_vr);
-            if (mm==1)||((clut_indic==0)&&(kk<last_clut+algo.min_noclut))
+            if (mm==1)||((clut_indic==0)&&((kk+ll)<(last_clut+algo.min_noclut)))
                 clut_prior = log([0; 1]);
             else
                 clut_prior = log(model.clut_trans(:,clut_indic+1));
@@ -156,7 +156,7 @@ for mm = 1:M
             if clut_indic
                 rb_mn = clut_rb_mn;
                 rb_vr = clut_rb_vr;
-                last_clut = kk;
+                last_clut = kk+ll;
             else
                 rb_mn = noclut_rb_mn;
                 rb_vr = noclut_rb_vr;
