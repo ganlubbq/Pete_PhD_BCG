@@ -11,6 +11,7 @@ interp_vector = sinc(grid);
 % neg = abs(grid)>5;
 % interp_vector = zeros(size(grid));
 % interp_vector(~neg) = sinc(grid(~neg));
+interp_vector(isinf(grid))=0;
 
 end
 

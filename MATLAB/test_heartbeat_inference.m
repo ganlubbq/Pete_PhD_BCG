@@ -14,7 +14,7 @@ if ~exist('flags.batch', 'var') || (~flags.batch)
     % dbstop if warning
     
     % DEFINE RANDOM SEED
-    rand_seed = 0;
+    rand_seed = 1;
     
     % Set random seed
     s = RandStream('mt19937ar', 'seed', rand_seed);
@@ -29,7 +29,7 @@ if ~exist('flags.batch', 'var') || (~flags.batch)
     
     % Set display options
     display.text = true;
-    display.plot_during = true;
+    display.plot_during = false;
     display.plot_after_frame = 0;
     if display.plot_during
         display.h_pf(1) = figure;

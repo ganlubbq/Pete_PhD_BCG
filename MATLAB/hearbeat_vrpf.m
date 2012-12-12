@@ -11,78 +11,25 @@ Nf = algo.Nf;
 K = model.K;
 
 % Number of particle filter steps we need to run
-M = ceil(K/algo.S)+1;
+M = ceil(K/algo.S);
 
 % Create particle filter structure arrays
 ps = init_ps(algo, model);
-
-if display.text
-    fprintf(1, 'Particle filter iteration %u.\n', 1);
-end
-
-%%% Initial particle filter step
-
-% Time indexes
-L = algo.L;
-S = algo.S;
-kk = 1 - S;
-
-% Inialise structure
 pf = init_pf(algo, model, algo.L);
 
-% First PF iteration
+% Initialise
 for ii = 1:Nf
-    
-    % Sample parameter from prior
-    [last_cp_param, ~] = heartbeat_cpparamprior(model);
-    pf(ii).pre_cp_param = last_cp_param;
-    
-    % Sample interval from transition density
-    [tau01, cp_param, ~]  = heartbeat_cptransition(model, 0, last_cp_param, 0, inf);
-    
-    % Sample a time for the changepoint before time 0
-    last_cp_time = unifrnd(-tau01,0);
-%     last_cp_time = 0;
-    pf(ii).pre_cp_time = last_cp_time;
-    
-    % Find the changepoint time after time 0
-    cp_time = last_cp_time + tau01;
-    if cp_time > time(kk+L)
-        cp_time = [];
-        cp_param = [];
-    end
-    pf(ii).win_cp_time = cp_time;
-    pf(ii).win_cp_param = cp_param;
-    
-    % Linear state and likelihood
-    pf(ii).win_rb_mn(:,S) = model.w_prior_mn;
-    pf(ii).win_rb_vr(:,:,S) = model.w_prior_vr;
-    rb_mn = model.w_prior_mn;
-    rb_vr = model.w_prior_vr;
-    for ll = S+1:L
-        
-        % Update changepoint if we've past one
-        if ~isempty(pf(ii).win_cp_time) && (time(kk+ll) > pf(ii).win_cp_time) && (last_cp_time < pf(ii).win_cp_time)
-            last_cp_time = pf(ii).win_cp_time;
-            rb_vr = rb_vr + model.w_trans_vr;
-        end
-        
-        H = heartbeat_interpolation(algo, model, time(kk+ll), last_cp_time);
-        [rb_mn, rb_vr, ~, s_mn, s_vr] = kf_update(rb_mn, rb_vr, observ(kk+ll), H, model.y_obs_vr);
-        lhood = loggausspdf(observ(kk+ll), s_mn, s_vr);
-        
-        pf(ii).win_rb_mn(:,ll) = rb_mn;
-        pf(ii).win_rb_vr(:,:,ll) = rb_vr;
-        pf(ii).win_obslhood(ll) = lhood;
-        
-    end
-    
-    pf(ii).weight = sum(pf(ii).win_obslhood);
-    
+    pf(ii).win_rb_mn(:,algo.S) = model.w_prior_mn;
+    pf(ii).win_rb_vr(:,:,algo.S) = model.w_prior_vr;
 end
 
+%%% Particle filter %%%
+
+% Initialise time
+kk = 1 - algo.S;
+
 % Loop through time
-for mm = 2:M
+for mm = 1:M
     
     last_pf = pf;
     last_ps = ps;
@@ -141,35 +88,42 @@ for mm = 2:M
         
         % Sample a new parameter for the preceeding changepoint (resample move)
         if isempty(pf(ii).ante_cp_time)
-            rm_pre_cp_param = heartbeat_cpparamprior(model);
+            [~, ppsl_pre_cp_param] = heartbeat_cpprior(model, 0, inf);
         else
-            [~, rm_pre_cp_param]  = heartbeat_cptransition(model, pf(ii).ante_cp_time, pf(ii).ante_cp_param, 0, inf);
+            [~, ppsl_pre_cp_param] = heartbeat_cptransition(model, pf(ii).ante_cp_time, pf(ii).ante_cp_param, 0, inf);
         end
         old_tp = log(1 - invgamcdf(time(kk)-pf(ii).pre_cp_time-pf(ii).pre_cp_param, model.tau_trans_shape, model.tau_trans_scale));
-        new_tp = log(1 - invgamcdf(time(kk)-pf(ii).pre_cp_time-rm_pre_cp_param, model.tau_trans_shape, model.tau_trans_scale));
+        new_tp = log(1 - invgamcdf(time(kk)-pf(ii).pre_cp_time-ppsl_pre_cp_param,   model.tau_trans_shape, model.tau_trans_scale));
         ap = new_tp-old_tp;
         if log(rand)<ap
-            pf(ii).pre_cp_param = rm_pre_cp_param;
+            pf(ii).pre_cp_param = ppsl_pre_cp_param;
         end
         
         % Sample changepoints in the window and find transition prob
-        [cp_time, cp_param, new_trans_prob]  = heartbeat_cptransition(model, pf(ii).pre_cp_time, pf(ii).pre_cp_param, time(kk), time(kk+L));
+        if isempty(pf(ii).pre_cp_time)
+            [cp_time, cp_param, new_trans_prob]  = heartbeat_cpprior(model, time(kk), time(kk+L));
+        else
+            [cp_time, cp_param, new_trans_prob]  = heartbeat_cptransition(model, pf(ii).pre_cp_time, pf(ii).pre_cp_param, time(kk), time(kk+L));
+        end
         pf(ii).win_cp_time = cp_time;
         pf(ii).win_cp_param = cp_param;
         
-        % Find old transition prob
-        last_cp_time = last_pf(a_idx).pre_cp_time;
-        last_cp_param = last_pf(a_idx).pre_cp_param;
-        if last_pf(a_idx).win_cp_time < time(kk)
-            last_cp_time = last_pf(a_idx).win_cp_time;
-            last_cp_param = last_pf(a_idx).win_cp_param;
-        end
-        [~, ~, old_trans_prob]  = heartbeat_cptransition(model, last_cp_time, last_cp_param, time(kk), time(kk+L));
+%         % Find old transition prob
+%         last_cp_time = last_pf(a_idx).pre_cp_time;
+%         last_cp_param = last_pf(a_idx).pre_cp_param;
+%         if last_pf(a_idx).win_cp_time < time(kk)
+%             last_cp_time = last_pf(a_idx).win_cp_time;
+%             last_cp_param = last_pf(a_idx).win_cp_param;
+%         end
+%         [~, ~, old_trans_prob]  = heartbeat_cptransition(model, last_cp_time, last_cp_param, time(kk), time(kk+L));
         
         %%% Clutter and likelihood %%%
 
         % Loop through observations
         last_cp_time = pf(ii).pre_cp_time;
+        if isempty(last_cp_time)
+            last_cp_time = -inf;
+        end
         rb_mn = pf(ii).pre_rb_mn;
         rb_vr = pf(ii).pre_rb_vr;
         clut_indic = pf(ii).pre_clut;
@@ -190,8 +144,7 @@ for mm = 2:M
             % Clutter sampling
             clut_rb_mn = rb_mn; clut_rb_vr = rb_vr;
             clut_lhood = loggausspdf(observ(kk+ll), 0, model.y_clut_vr);
-%             clut_prob = [log(model.clut_trans(1, clut_indic+1)) + clut_lhood; log(model.clut_trans(2, clut_indic+1)) + noclut_lhood];
-            if (clut_indic==0)&&(kk<last_clut+algo.min_noclut)
+            if (mm==1)||((clut_indic==0)&&(kk<last_clut+algo.min_noclut))
                 clut_prior = log([0; 1]);
             else
                 clut_prior = log(model.clut_trans(:,clut_indic+1));
@@ -330,14 +283,10 @@ pf = struct('pre_cp_time', cell(Nf,1), ...          Most recent changepoint to o
             'ancestor', cell(Nf,1), ...             Ancestor particle
             'weight', cell(Nf,1));%                 Particle weight
 
-[pf.pre_cp_time] = deal(0);
-[pf.pre_cp_param] = deal(zeros(model.dp,1));
 [pf.pre_rb_mn] = deal(zeros(model.dw,1));
 [pf.pre_rb_vr] = deal(zeros(model.dw,model.dw,1));
 [pf.pre_clut] = deal(0);
 [pf.pre_last_clut] = deal(-inf);
-[pf.win_cp_time] = deal(zeros(1,0));
-[pf.win_cp_param] = deal(zeros(2,0));
 [pf.win_rb_mn] = deal(zeros(model.dw,L));
 [pf.win_rb_vr] = deal(zeros(model.dw,model.dw,L));
 [pf.win_clut] = deal(zeros(1,L));
