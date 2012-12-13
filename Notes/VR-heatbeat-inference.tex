@@ -2,102 +2,161 @@
 
 \usepackage{amsmath}
 \usepackage{IEEEtrantools}
+\usepackage{algorithm}
+\usepackage{algorithmic}
 \usepackage{color}
 
 \newenvironment{meta}[0]{\color{red} \em}{}
 \newcommand{\sinc}{{\rm sinc}}
+\newcommand{\bw}{\mathbf{w}}
+\newcommand{\bh}{\mathbf{h}}
 
-\title{Inference of Heartbeats in BCG and ECG signals using Variable Rate Particle Filtering}
+\title{Inference of Heartbeats in Cardiography Signals using Variable Rate Particle Filtering}
 \author{Pete Bunch}
-\date{November 2012}
+\date{December 2012}
 
 \begin{document}
 
 \maketitle
 
+\section{Introduction}
+
+Sometimes detecting heartbeats in a BCG or ECG signal is easy --- one can simply pick the largest peaks at roughly $1$ second intervals. Smoothing or differentiating may be required. At other times, more sophisticated algorithms may be required, because of low signal-to-noise ratios and inconsistency between heartbeats. Here, a particle filtering approach is described.
+
+\section{Preprocessing}
+
+Our BCG signals are corrupted by $50$Hz mains interference, as well as a DC bias which occasionally makes large jumps. To remove these effects, the discrete-time signal is bandpass filtered between $0.2$Hz and $15$Hz with a $300$ tap symmetric, non-causal FIR filter, and down-sampled to $30$Hz. This reduces the processing burden with minimal loss of useful information.
+
 \section{Model}
 
-Here we start with a nice simple model. A sequence of changepoints $\{\tau_k\}$ represents the start of each beat. Associated parameter sequences $\{a_k\}$ and $\{p_k\}$ represent the amplitude and pulse (mean beat period) for the corresponding beat. Finally, $\{\mathbf{w}_k\}$ is a vector representing the waveform of the pulse. This will consist of about 30 discrete samples (which, at 30Hz sampling rate, is about a second long).
+We model the cardiography signal as a sequence of similar, irregularly-spaced heartbeat waveforms in noise, using a variable rate framework. The heartbeat start times are represented by a sequence of changepoints, $\{\tau_k\}$, and the corresponding waveforms by a the vector sequence, $\{\bw_k\}$. These vectors are sampled at the same rate as the signal. The sampled signal is composed of measurements, $\{y_n\}$, at times $\{t_n\}$ spaced by sampling period $T_s$.
 
-The continuous time signal can be written as,
+We will need some useful index variables, $K(t) = \max\{k : \tau_k<t\}$, $K_n = K(t_n)$, which reference the most recent changepoint.
+
+The signal is modelled as,
 %
 \begin{IEEEeqnarray}{rCl}
- s(t) & = & a_{K(t)} b(t,\tau_{K_t})^T \mathbf{w}_{K(t)}     ,
+ s_n = s(t_n) & = & \bh(t,\tau_{K_n})^T \bw     ,
 \end{IEEEeqnarray}
-
-where $b(t,\tau_{K_t})^T$ is an interpolation matrix which reconstructs a continuous time waveform from the discrete samples. For example, if we used sinc-interpolation,
+%
+$\bh(t,\tau_{K_n})$ is a vector of interpolation coefficients. Because of the anti-aliasing filter, we can achieve perfect interpolation using,
 %
 \begin{IEEEeqnarray}{rCl}
- b(t,\tau_{K_t})_{n} & = & \sinc\left( \frac{t - n T_s - \tau_{K(t)}}{T_s} \right)    ,
+ \bh(t,\tau_{K_n})_i & = & \sinc\left(\frac{t-\tau_{K_n}- i T_s}{T_s}\right)     .
 \end{IEEEeqnarray}
+%
+However, it might be computationally pragmatic to use something more sparse. Maybe some cubic-splines.
 
-where $T_s = \frac{1}{f_s}$ is the sampling period.
-
-The waveform $\mathbf{w}_k$ is expected to change only slowly over time. We use a Gaussian transition density with a tight covariance matrix,
+The waveform $\bw_k$ is expected to change only slowly over time. We use a Gaussian transition density with a tight covariance matrix,
 %
 \begin{IEEEeqnarray}{rCl}
- p(\mathbf{w}_k | \mathbf{w}_{k-1}) & = & \mathcal{N}(\mathbf{w}_k|\mathbf{w}_{k-1},Q_w)     .
+ p(\bw_k | \bw_{k-1}) & = & \mathcal{N}(\bw_k|\bw_{k-1},Q_w)     .
 \end{IEEEeqnarray}
 
-In addition, we assume that:
-\begin{itemize}
-  \item $\tau_k$ has some distribution (probably gamma or inverse-gamma) with mean $\tau_{k-1} + p_{k-1}$.
-  \item $p_{k}$ has some distribution (maybe gamma or inverse gamma) with mean $p_{k-1}$.
-  \item $A_{k}$ has some distribution (maybe Rayleigh) with mean $A_{k-1}$.
-\end{itemize}
+We need a model for the evolution of $\tau_k$. Examining the intervals between successive heartbeats, there is considerable variability. Over a short time, there appears to be a hard lower bound for the beat periods, while the upward variability is much greater. On a longer time scale, this lower bound varies slowly. Based on these observations, we adopt a shifted inverse-gamma prior for the beat periods, where the shift is itself a random variable, denoted $\Delta_k$. The evolution of $\Delta_k$ is modelled as a gamma random walk.
 
 Finally, we assume a Gaussian observation model,
 %
 \begin{IEEEeqnarray}{rCl}
- y_n & = & \mathcal{N}(y_n|s(t_n),\sigma_y^2)     .
+ y_n & = & \mathcal{N}(y_n|s_n,\sigma_y^2)     .
 \end{IEEEeqnarray}
 
+\subsection{Clutter}
+
+The data is intermittently interrupted by high amplitude noise, caused by vibrations, the subject rolling over, or electrical effects. We need to be able to detect and correct for such clutter. An indicator variable, $\lambda_n$ is introduced for each observation to indicate the presence of clutter. The new observation model is,
+%
+\begin{IEEEeqnarray}{rCl}
+ y_n & = & \begin{cases} \mathcal{N}(y_n|s_n,\sigma_y^2) & \lambda_n = 0 \\ \mathcal{N}(y_n|0,\sigma_C^2) & \lambda_n = 1 \end{cases}      .
+\end{IEEEeqnarray}
+
+$\lambda_n$ is assumed to follow a Markov process with fixed transition probabilities.
 
 
 \section{Inference Algorithm}
 
-Within this model we can do inference using a variable rate particle filter. In addition, because of the linear-Gaussian model assumptions, we can Rao-Blackwellise the waveform variable, $\mathbf{w}_k$, which will give us a huge dimensionality reduction. Hooray! The resulting algorithm will be a modification of that of [Morelande and Gordon, 2009].
+With this model we can do inference using a variable rate particle filter. In addition, because of the linear-Gaussian model assumptions, we can Rao-Blackwellise the waveform variable, $\bw_k$, which will give us a huge dimensionality reduction. Hooray! The resulting algorithm will be a similar to those of [Morelande and Gordon, 2009] and [Whiteley, Johanssen, Godsill, 2011].
 
-We want our particle filter to estimate the changepoint times and also the parameters,
+We want our particle filter to estimate the changepoint times and also the parameters. Additional parameters could be included.
 %
 \begin{IEEEeqnarray}{rCl}
- \mathbf{u}_k & = & \begin{bmatrix} p_k \\ a_k \end{bmatrix}     .
+ \mathbf{u}_k & = & \begin{bmatrix} \Delta_k \end{bmatrix}     .
 \end{IEEEeqnarray}
 
 As usual, we bundle all these into a single variable,
 %
 \begin{IEEEeqnarray}{rCl}
- \theta_n^- & = & \left\{ \tau_j, u_j \forall j : 0 \leq \tau_j < t_n \right\}     .
+ \theta_n & = & \left\{ \tau_j, u_j \forall j : 0 \leq \tau_j < t_n \right\}     .
 \end{IEEEeqnarray}
 
-So the target distribution is,
+\subsection{Clutter-free}
+
+The target distribution is,
 %
 \begin{IEEEeqnarray}{rCl}
- p(\theta_n^- | y_{1:n})     .
+ p(\theta_n | y_{1:n})     .
 \end{IEEEeqnarray}
 
-A standard variable rate particle filter can now be applied. The likelihood is a little bit tricky,
+A standard variable rate particle filter can now be applied, using bootstrap proposals. The likelihood is a little bit tricky,
 %
 \begin{IEEEeqnarray}{rCl}
- p(y_n | \theta_n^-, y_{1:n-1}) & = & \int p(y_n | \theta_n^-, \mathbf{w}_{K_n}) p(\mathbf{w}_{K_n} | \theta_n^-, y_{1:n-1}) d\mathbf{w}_{K_n} \nonumber \\
-                              & = & \int p(y_n | s(t_n)) p(\mathbf{w}_{K_n} | \theta_n^-, y_{1:n-1}) d\mathbf{w}_{K_n} \nonumber \\
-                              & = & \int \mathcal{N}(y_n|a_{K_n} b(t,\tau_{K_n})^T \mathbf{w}_{K_n},\sigma_y^2) \mathcal{N}(\mathbf{w}_{K_n}|\mathbf{m}_{n-1},\mathbf{P}_{n-1})      .
+ p(y_n | \theta_n, y_{1:n-1}) & = & \int p(y_n | \theta_n, \bw_{K_n}) p(\bw_{K_n} | \theta_n, y_{1:n-1}) d\bw_{K_n} \nonumber \\
+                              & = & \int p(y_n | s(t_n)) p(\bw_{K_n} | \theta_n, y_{1:n-1}) d\bw_{K_n} \nonumber \\
+                              & = & \int \mathcal{N}(y_n|\bh(t,\tau_{K_n})^T \bw_{K_n},\sigma_y^2) \mathcal{N}(\bw_{K_n}|\mathbf{m}_{n-1},\mathbf{P}_{n-1})      .
 \end{IEEEeqnarray}
 
-A Kalman filter is maintained for each particle to estimate the density over $\mathbf{w}_{K_n}$. If no changepoint occurs between $t_{n-1}$ and $t_n$, then,
+A Kalman filter is maintained for each particle to estimate the density over $\bw_{K_n}$. If no changepoint occurs between $t_{n-1}$ and $t_n$, then,
 %
 \begin{IEEEeqnarray}{rCl}
- p(\mathbf{w}_{K_n} | \theta_n^-, y_{1:n}) & \propto & p(y_n | \mathbf{w}_{K_n}, \theta_n^-) p(\mathbf{w}_{K_n} | \theta_n^-, y_{1:n-1}) \nonumber \\
-                                           & =       & \mathcal{N}(y_n|a_{K_n} b(t,\tau_{K_n})^T \mathbf{w}_{K_n},\sigma_y^2) \mathcal{N}(\mathbf{w}_{K_n}|\mathbf{m}_{n-1},\mathbf{P}_{n-1})     .
+ p(\bw_{K_n} | \theta_n^-, y_{1:n}) & \propto & p(y_n | \bw_{K_n}, \theta_n^-) p(\bw_{K_n} | \theta_n^-, y_{1:n-1}) \nonumber \\
+                                   & =       & \mathcal{N}(y_n|\bh(t,\tau_{K_n})^T \bw_{K_n},\sigma_y^2) \mathcal{N}(\bw_{K_n}|\mathbf{m}_{n-1},\mathbf{P}_{n-1})     .
 \end{IEEEeqnarray}
 
 Alternatively, if a changepoint does occur between $t_{n-1}$ and $t_n$, then,
 %
 \begin{IEEEeqnarray}{rCl}
- p(\mathbf{w}_{K_n} | \theta_n^-, y_{1:n}) & = & p(y_n | \mathbf{w}_{K_n}, \theta_n^-) \int p(\mathbf{w}_{K_n} | \mathbf{w}_{K_n-1}) p(\mathbf{w}_{K_n-1} | \theta_n^-, y_{1:n-1}) d\mathbf{w}_{K_n-1} \nonumber \\
-                                           & = & \mathcal{N}(y_n|a_{K_n} b(t,\tau_{K_n})^T \mathbf{w}_{K_n},\sigma_y^2) \int \mathcal{N}(\mathbf{w}_{K_n}|\mathbf{w}_{K_n-1},Q_w) \mathcal{N}(\mathbf{w}_{K_n-1}|\mathbf{m}_{n-1},\mathbf{P}_{n-1})     .
+ p(\bw_{K_n} | \theta_n^-, y_{1:n}) & = & p(y_n | \bw_{K_n}, \theta_n^-) \int p(\bw_{K_n} | \bw_{K_n-1}) p(\bw_{K_n-1} | \theta_n^-, y_{1:n-1}) d\bw_{K_n-1} \nonumber \\
+                                           & = & \mathcal{N}(y_n|a_{K_n} b(t,\tau_{K_n})^T \mathbf{w}_{K_n},\sigma_y^2) \int \mathcal{N}(\bw_{K_n}|\bw_{K_n-1},Q_w) \mathcal{N}(\bw_{K_n-1}|\mathbf{m}_{n-1},\mathbf{P}_{n-1})     .
 \end{IEEEeqnarray}
 
 So everything's Gaussian, and can be calculated in closed form. Jolly good.
 
-\end{document}
+\subsection{With Clutter}
+
+The target distribution for the particle filter is now,
+%
+\begin{IEEEeqnarray}{rCl}
+ p(\theta_n, \lambda_{1:n} | y_{1:n})     .
+\end{IEEEeqnarray}
+%
+Note that if we weren't Rao-Blackwellising $\bw$ then we could calculate $p(\lambda_n|\theta_n, y_{1:n})$ in closed form, but since we are, we can't, because it would mess up the Kalman filters. We can however, propose exactly from $p(\lambda_n|\theta_n, y_{1:n})$.
+
+
+\subsection{Fixed Lag ``Smoother''}
+
+The particle filter algorithm doesn't work very well. This is because it takes many observations to observe a heartbeat, and often the right particles have been discarded before they are needed. The solution to this is to use a fixed-lag smoother. The target distribution is,
+%
+\begin{IEEEeqnarray}{rCl}
+ p(\theta_{n+L}, \lambda_{1:n+L} | y_{1:n+L})     ,
+\end{IEEEeqnarray}
+%
+and we allow changes to $\theta_{n+L \setminus n}$ and $\lambda_{n+1:n+L}$. In addition, we can now move forward in batches rather than running a particle filter at every observation time. The batch size, $S$, will need to be smaller than the window size, $L$.
+
+Such a fixed lag smoother uses the SMC sampler algorithm of [Doucet, Briers, Senecal, 2006], which makes it distinct from (although still pretty similar to) the method of [Whiteley, Johansen, Godsill, 2011].
+
+\begin{algorithm}
+\begin{algorithmic}
+  \FOR{$n = 0,S,2S,\dots$}
+    \FOR{$i = 1,\dots,N_F$}
+      \STATE Select a particle $\{\theta_{n+L-S}, \lambda_{1:n+L-S}\}^{(i)}$ with probability $w_{n-S}^{(i)}$
+      \STATE Sample $\theta_{n+L \setminus n}^{'(i)} \sim p(\cdot|\theta_n^{(i)})$
+      \FOR{l = 1,\dots,L}
+        \STATE Sample $\lambda_{n+l}^{'(i)} \sim p(\cdot|\theta_{n+L}^{(i)}, \lambda_{n+l-1}^{(i)}, y_{1:n})$
+      \ENDFOR
+      \STATE $w_n^{(i)} = p(y_{n+1:n+L}|\theta_{n+L}^{'(i)}, y_{1:n})/p(y_{n+1:n+L-S}|\theta_{n+L-S}, y_{1:n})$
+    \ENDFOR
+  \ENDFOR
+\end{algorithmic}
+\end{algorithm}
+
+
+\end{document} 

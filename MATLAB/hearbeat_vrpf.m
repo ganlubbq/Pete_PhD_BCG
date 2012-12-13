@@ -79,10 +79,15 @@ for mm = 1:M
         pf(ii).pre_rb_vr = last_pf(a_idx).win_rb_vr(:,:,S);
         pf(ii).pre_clut = last_pf(a_idx).win_clut(S);
         last_clut = kk + find(last_pf(a_idx).win_clut(1:S)==1,1,'last');
+        last_noclut = kk + find(last_pf(a_idx).win_clut(1:S)==0,1,'last');
         if isempty(last_clut)
             last_clut = last_pf(a_idx).pre_last_clut;
         end
+        if isempty(last_noclut)
+            last_noclut = last_pf(a_idx).pre_last_noclut;
+        end
         pf(ii).pre_last_clut = last_clut;
+        pf(ii).pre_last_noclut = last_noclut;
         
         %%% CHANGEPOINT SAMPLING %%%
         
@@ -108,19 +113,20 @@ for mm = 1:M
         pf(ii).win_cp_time = cp_time;
         pf(ii).win_cp_param = cp_param;
         
-%         % Find old transition prob
-%         last_cp_time = last_pf(a_idx).pre_cp_time;
-%         last_cp_param = last_pf(a_idx).pre_cp_param;
-%         if last_pf(a_idx).win_cp_time < time(kk)
-%             last_cp_time = last_pf(a_idx).win_cp_time;
-%             last_cp_param = last_pf(a_idx).win_cp_param;
-%         end
-%         [~, ~, old_trans_prob]  = heartbeat_cptransition(model, last_cp_time, last_cp_param, time(kk), time(kk+L));
+        % Find old transition prob
+        last_cp_time = last_pf(a_idx).pre_cp_time;
+        last_cp_param = last_pf(a_idx).pre_cp_param;
+        if last_pf(a_idx).win_cp_time < time(kk)
+            last_cp_time = last_pf(a_idx).win_cp_time;
+            last_cp_param = last_pf(a_idx).win_cp_param;
+        end
+        [~, ~, old_trans_prob]  = heartbeat_cptransition(model, last_cp_time, last_cp_param, time(kk), time(kk+L));
         
         %%% Clutter and likelihood %%%
 
         % Loop through observations
         last_cp_time = pf(ii).pre_cp_time;
+        last_cp_param = pf(ii).pre_cp_time;
         if isempty(last_cp_time)
             last_cp_time = -inf;
         end
@@ -144,8 +150,12 @@ for mm = 1:M
             % Clutter sampling
             clut_rb_mn = rb_mn; clut_rb_vr = rb_vr;
             clut_lhood = loggausspdf(observ(kk+ll), 0, model.y_clut_vr);
-            if (mm==1)||((clut_indic==0)&&((kk+ll)<(last_clut+algo.min_noclut)))
+            if (mm==1)
                 clut_prior = log([0; 1]);
+            elseif (clut_indic==0) && ((kk+ll)<(last_clut+algo.min_noclut))
+                clut_prior = log([0; 1]);
+            elseif (clut_indic==1) && ((kk+ll)<(last_noclut+algo.min_clut))
+                clut_prior = log([1; 0]);
             else
                 clut_prior = log(model.clut_trans(:,clut_indic+1));
             end
@@ -160,6 +170,7 @@ for mm = 1:M
             else
                 rb_mn = noclut_rb_mn;
                 rb_vr = noclut_rb_vr;
+                last_noclut = kk+ll;
             end
 
             % Store everything
@@ -252,7 +263,7 @@ ps = struct('Ncp', cell(Nf,1), ...                  Number of changepoints over 
 [ps.Ncp] = deal(0);
 [ps.cp_time] = deal(zeros(1,0));
 [ps.cp_param] = deal(zeros(model.dp,0));
-[ps.rb_mn] = deal(zeros(model.dw,model.K));
+[ps.rb_mn] = deal(zeros(model.dw,K));
 
 end
 
@@ -261,7 +272,6 @@ function [pf] = init_pf(algo, model, L)
 
 Nf = algo.Nf;
 K = model.K;
-M = ceil(K/algo.S)+1;
 
 pf = struct('pre_cp_time', cell(Nf,1), ...          Most recent changepoint to occur before the window ...
             'pre_cp_param', cell(Nf,1), ...         ... and the corresponding parameters
@@ -271,6 +281,7 @@ pf = struct('pre_cp_time', cell(Nf,1), ...          Most recent changepoint to o
             'pre_rb_vr', cell(Nf,1), ...            (Co)variance of the Rao-Blackwellised bit before the window
             'pre_clut', cell(Nf,1), ...             Clutter indicator variable for the most recent observation before the window
             'pre_last_clut', cell(Nf,1), ...        Time index of the last clutter observation
+            'pre_last_noclut', cell(Nf,1), ...      Time index of the last no-clutter observation
             'win_Ncp', cell(Nf,1), ...              Number of changepoints in the window
             'win_cp_time', cell(Nf,1), ...          Changepoints occuring within the window ...
             'win_cp_param', cell(Nf,1), ...         ... and the corresponding parameters.
@@ -286,6 +297,7 @@ pf = struct('pre_cp_time', cell(Nf,1), ...          Most recent changepoint to o
 [pf.pre_rb_mn] = deal(zeros(model.dw,1));
 [pf.pre_rb_vr] = deal(zeros(model.dw,model.dw,1));
 [pf.pre_clut] = deal(0);
+[pf.pre_last_clut] = deal(-inf);
 [pf.pre_last_clut] = deal(-inf);
 [pf.win_rb_mn] = deal(zeros(model.dw,L));
 [pf.win_rb_vr] = deal(zeros(model.dw,model.dw,L));

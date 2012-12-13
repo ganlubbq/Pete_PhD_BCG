@@ -7,7 +7,6 @@ model.dp = 1;                                   % Number of changepoint paramete
 model.dw = 40;                                  % Number of samples in the beat waveform
 
 % Priors
-model.tau_prior_lower = -3;
 % load('template_beat.mat');
 % template = [template zeros(1,model.dw-length(template))];
 % model.w_prior_mn = template';
