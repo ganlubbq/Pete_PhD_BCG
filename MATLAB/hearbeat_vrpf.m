@@ -38,6 +38,9 @@ for mm = 1:M
     kk = kk + algo.S;
     L = min(algo.L, K-kk);
     S = min(algo.S, K-kk);
+    if mm == 1
+        L = model.dw;
+    end
     
     if display.text
         fprintf(1, 'Particle filter iteration %u of %u, using a window of %f to %f (indexes %u to %u)\n', mm, M, time(kk), time(kk+L), kk, kk+L);
@@ -97,8 +100,13 @@ for mm = 1:M
         else
             [~, ppsl_pre_cp_param] = heartbeat_cptransition(model, pf(ii).ante_cp_time, pf(ii).ante_cp_param, 0, inf);
         end
-        old_tp = log(1 - invgamcdf(time(kk)-pf(ii).pre_cp_time-pf(ii).pre_cp_param, model.tau_trans_shape, model.tau_trans_scale));
-        new_tp = log(1 - invgamcdf(time(kk)-pf(ii).pre_cp_time-ppsl_pre_cp_param,   model.tau_trans_shape, model.tau_trans_scale));
+        if ~isempty(pf(ii).pre_cp_time)
+            old_tp = log(1 - invgamcdf(time(kk)-pf(ii).pre_cp_time-pf(ii).pre_cp_param, model.tau_trans_shape, model.tau_trans_scale));
+            new_tp = log(1 - invgamcdf(time(kk)-pf(ii).pre_cp_time-ppsl_pre_cp_param,   model.tau_trans_shape, model.tau_trans_scale));
+        else
+            old_tp = 0;
+            new_tp = 0;
+        end
         ap = new_tp-old_tp;
         if log(rand)<ap
             pf(ii).pre_cp_param = ppsl_pre_cp_param;
@@ -113,20 +121,20 @@ for mm = 1:M
         pf(ii).win_cp_time = cp_time;
         pf(ii).win_cp_param = cp_param;
         
-        % Find old transition prob
-        last_cp_time = last_pf(a_idx).pre_cp_time;
-        last_cp_param = last_pf(a_idx).pre_cp_param;
-        if last_pf(a_idx).win_cp_time < time(kk)
-            last_cp_time = last_pf(a_idx).win_cp_time;
-            last_cp_param = last_pf(a_idx).win_cp_param;
-        end
-        [~, ~, old_trans_prob]  = heartbeat_cptransition(model, last_cp_time, last_cp_param, time(kk), time(kk+L));
+%         % Find old transition prob
+%         last_cp_time = last_pf(a_idx).pre_cp_time;
+%         last_cp_param = last_pf(a_idx).pre_cp_param;
+%         if last_pf(a_idx).win_cp_time < time(kk)
+%             last_cp_time = last_pf(a_idx).win_cp_time;
+%             last_cp_param = last_pf(a_idx).win_cp_param;
+%         end
+%         [~, ~, old_trans_prob]  = heartbeat_cptransition(model, last_cp_time, last_cp_param, time(kk), time(kk+L));
         
         %%% Clutter and likelihood %%%
 
         % Loop through observations
         last_cp_time = pf(ii).pre_cp_time;
-        last_cp_param = pf(ii).pre_cp_time;
+        last_cp_param = pf(ii).pre_cp_param;
         if isempty(last_cp_time)
             last_cp_time = -inf;
         end
@@ -139,38 +147,55 @@ for mm = 1:M
             if ~isempty(pf(ii).win_cp_time) && (time(kk+ll) > pf(ii).win_cp_time) && (last_cp_time < pf(ii).win_cp_time)
                 last_cp_time = pf(ii).win_cp_time;
                 last_cp_param = pf(ii).win_cp_param;
-                rb_vr = rb_vr + model.w_trans_vr;
+                if pf(ii).pre_cp_param(2) == 0
+                    rb_vr = rb_vr + model.w_trans_vr;
+                elseif pf(ii).pre_cp_param(2) == 1
+                    rb_vr = rb_vr + model.w_trans_vr;
+                end
             end
             
             % Interpolation and Kalman filtering
             H = heartbeat_interpolation(algo, model, time(kk+ll), last_cp_time);
-            [noclut_rb_mn, noclut_rb_vr, ~, s_mn, s_vr] = kf_update(rb_mn, rb_vr, observ(kk+ll), H, model.y_obs_vr);
-            noclut_lhood = loggausspdf(observ(kk+ll), s_mn, s_vr);
             
-            % Clutter sampling
-            clut_rb_mn = rb_mn; clut_rb_vr = rb_vr;
-            clut_lhood = loggausspdf(observ(kk+ll), 0, model.y_clut_vr);
-            if (mm==1)
-                clut_prior = log([0; 1]);
-            elseif (clut_indic==0) && ((kk+ll)<(last_clut+algo.min_noclut))
-                clut_prior = log([0; 1]);
-            elseif (clut_indic==1) && ((kk+ll)<(last_noclut+algo.min_clut))
-                clut_prior = log([1; 0]);
-            else
-                clut_prior = log(model.clut_trans(:,clut_indic+1));
-            end
-            clut_prob = clut_prior + [clut_lhood; noclut_lhood];
-            lhood = logsumexp(clut_prob);
-            clut_prob = clut_prob - lhood;
-            clut_indic = log(rand)<clut_prob(1);
-            if clut_indic
-                rb_mn = clut_rb_mn;
-                rb_vr = clut_rb_vr;
-                last_clut = kk+ll;
-            else
-                rb_mn = noclut_rb_mn;
-                rb_vr = noclut_rb_vr;
-                last_noclut = kk+ll;
+            if isempty(last_cp_param) || (last_cp_param(2) == 0)
+                
+                [noclut_rb_mn, noclut_rb_vr, ~, s_mn, s_vr] = kf_update(rb_mn, rb_vr, observ(kk+ll), H, model.y_obs_vr);
+                noclut_lhood = loggausspdf(observ(kk+ll), s_mn, s_vr);
+                
+                % Clutter sampling
+                clut_rb_mn = rb_mn; clut_rb_vr = rb_vr;
+                clut_lhood = loggausspdf(observ(kk+ll), 0, model.y_clut_vr);
+                if (mm==1)
+                    clut_prior = log([0; 1]);
+                elseif (clut_indic==0) && ((kk+ll)<(last_clut+algo.min_noclut))
+                    clut_prior = log([0; 1]);
+                elseif (clut_indic==1) && ((kk+ll)<(last_noclut+algo.min_clut))
+                    clut_prior = log([1; 0]);
+                else
+                    clut_prior = log(model.clut_trans(:,clut_indic+1));
+                end
+                clut_prob = clut_prior + [clut_lhood; noclut_lhood];
+                lhood = logsumexp(clut_prob);
+                clut_prob = clut_prob - lhood;
+                clut_indic = log(rand)<clut_prob(1);
+                if clut_indic
+                    rb_mn = clut_rb_mn;
+                    rb_vr = clut_rb_vr;
+                    last_clut = kk+ll;
+                else
+                    rb_mn = noclut_rb_mn;
+                    rb_vr = noclut_rb_vr;
+                    last_noclut = kk+ll;
+                end
+                
+            elseif last_cp_param(2) == 1
+                
+%                 lhood = loggausspdf(observ(kk+ll), 0, model.y_dstb_vr);
+                lhood = log(tpdf(observ(kk+ll)/sqrt(model.y_dstb_vr), 1)/sqrt(model.y_dstb_vr));
+                s_mn = H * rb_mn;
+                s_vr = H * rb_vr * H' + model.y_obs_vr;
+                clut_indic = 0;
+                
             end
 
             % Store everything
@@ -192,7 +217,7 @@ for mm = 1:M
         
         % Diagnostics
         diagnostic_lastest_cp_time(ii) = last_cp_time;
-        diagnostic_lastest_cp_param(:,ii) = last_cp_param;
+%         diagnostic_lastest_cp_param(:,ii) = last_cp_param;
     end
     
     assert(~any(isnan([pf.weight])));

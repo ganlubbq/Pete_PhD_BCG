@@ -64,6 +64,7 @@ if (~exist('flags.batch', 'var')||(~flags.batch)) && display.plot_after
     figure, surf(mean(cat(3,ps.rb_mn),3)), shading interp
     figure, hold on, arrayfun(@(x) plot(x.cp_time,x.cp_param(1,:)), ps); 
                      arrayfun(@(x) plot(x.cp_time(2:end), diff(x.cp_time), 'r'), ps);
+    figure, hold on, arrayfun(@(x) plot(x.cp_time,x.cp_param(2,:)), ps);
     figure, hold on, plot(time, observ, 'r'),
                      plot(time, mean(cat(1,ps.signal_mn),1), 'b'),
                      plot(time, mean(cat(1,ps.signal_mn),1)+2*sqrt(mean(cat(1,ps.signal_vr),1)), ':b'),

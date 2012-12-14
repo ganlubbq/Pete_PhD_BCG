@@ -6,7 +6,7 @@ algo.L = 50;                                % Window length
 algo.S = 20;                                % Step size
 
 algo.min_noclut = 0;
-algo.min_clut = 20;
+algo.min_clut = 0;
 
 algo.cp_ppsl_lag = algo.L-1;
 algo.kd_vr = 0.5/model.fs;
