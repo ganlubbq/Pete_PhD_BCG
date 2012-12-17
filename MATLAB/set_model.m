@@ -17,13 +17,13 @@ model.p_prior_shape = 50;
 model.p_prior_scale = 0.02;
 
 % Transition models
-model.tau_trans_shape = 3;                      % Changepoint time transition density (shifted inverse-gamma) shape paramter
-model.tau_trans_scale = 0.4;                    % Changepoint time transition density (shifted inverse-gamma) scale paramter
+model.tau_trans_shape = 2;                      % Changepoint time transition density (shifted inverse-gamma) shape paramter
+model.tau_trans_scale = 0.6;                    % Changepoint time transition density (shifted inverse-gamma) scale paramter
 model.p_trans_scale = 1E-4;                     % Beat period transition density (gamma) scale (shape is the previous value/scale)
 model.w_trans_vr = 0.05^2*eye(model.dw);        % Waveform transition density (normal) covariance matrix (mean is the previous value)
 
 % Clutter
-model.clut_trans = [0.001 0.9; 0.999 0.1];      % Clutter indicator transition matrix
+model.clut_trans = [0.001 0.5; 0.999 0.5];      % Clutter indicator transition matrix
 model.y_clut_vr = 2^2;                         % Clutter observation variance
 
 % Disturbance
