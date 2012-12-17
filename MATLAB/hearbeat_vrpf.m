@@ -31,6 +31,7 @@ kk = 1 - algo.S;
 % Loop through time
 for mm = 1:M
     
+    last_kk = kk;
     last_pf = pf;
     last_ps = ps;
     
@@ -81,8 +82,8 @@ for mm = 1:M
         pf(ii).pre_rb_mn = last_pf(a_idx).win_rb_mn(:,S);
         pf(ii).pre_rb_vr = last_pf(a_idx).win_rb_vr(:,:,S);
         pf(ii).pre_clut = last_pf(a_idx).win_clut(S);
-        last_clut = kk + find(last_pf(a_idx).win_clut(1:S)==1,1,'last');
-        last_noclut = kk + find(last_pf(a_idx).win_clut(1:S)==0,1,'last');
+        last_clut = last_kk + find(last_pf(a_idx).win_clut(1:S)==1,1,'last');
+        last_noclut = last_kk + find(last_pf(a_idx).win_clut(1:S)==0,1,'last');
         if isempty(last_clut)
             last_clut = last_pf(a_idx).pre_last_clut;
         end
@@ -145,13 +146,13 @@ for mm = 1:M
             
             % Update changepoint if we've past one
             if ~isempty(pf(ii).win_cp_time) && (time(kk+ll) > pf(ii).win_cp_time) && (last_cp_time < pf(ii).win_cp_time)
-                last_cp_time = pf(ii).win_cp_time;
-                last_cp_param = pf(ii).win_cp_param;
-                if pf(ii).pre_cp_param(2) == 0
+                if (last_cp_param(2) == 1)&&(pf(ii).win_cp_param(2) == 0)
                     rb_vr = rb_vr + model.w_trans_vr;
-                elseif pf(ii).pre_cp_param(2) == 1
+                else
                     rb_vr = rb_vr + model.w_trans_vr;
                 end
+                last_cp_time = pf(ii).win_cp_time;
+                last_cp_param = pf(ii).win_cp_param;
             end
             
             % Interpolation and Kalman filtering
@@ -165,6 +166,7 @@ for mm = 1:M
                 % Clutter sampling
                 clut_rb_mn = rb_mn; clut_rb_vr = rb_vr;
                 clut_lhood = loggausspdf(observ(kk+ll), 0, model.y_clut_vr);
+%                 clut_lhood = log(tpdf(observ(kk+ll)/sqrt(model.y_clut_vr), 1)/sqrt(model.y_clut_vr));
                 if (mm==1)
                     clut_prior = log([0; 1]);
                 elseif (clut_indic==0) && ((kk+ll)<(last_clut+algo.min_noclut))

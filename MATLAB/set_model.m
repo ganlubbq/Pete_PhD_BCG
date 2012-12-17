@@ -24,13 +24,13 @@ model.w_trans_vr = 0.05^2*eye(model.dw);        % Waveform transition density (n
 
 % Clutter
 model.clut_trans = [0.001 0.9; 0.999 0.1];      % Clutter indicator transition matrix
-model.y_clut_vr = 10^2;                         % Clutter observation variance
+model.y_clut_vr = 2^2;                         % Clutter observation variance
 
 % Disturbance
 % model.dstb_trans = [0 0; 1 1];                  % Disturbance indicator transition matrix
-model.dstb_trans = [0.2 0.9; 0.8 0.1];          % Disturbance indicator transition matrix
+model.dstb_trans = [0.01 0.95; 0.99 0.05];          % Disturbance indicator transition matrix
 % model.dstb_prior = 0.2;                         % Prior probability of a disturbance beat
-model.y_dstb_vr = 5^2;                         % Disturbance observation variance
+model.y_dstb_vr = 1^2;                         % Disturbance observation variance
 
 % Observation model
 model.y_obs_vr = 0.2^2;                         % Observation variance

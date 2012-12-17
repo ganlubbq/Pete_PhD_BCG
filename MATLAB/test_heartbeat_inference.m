@@ -30,7 +30,7 @@ if ~exist('flags.batch', 'var') || (~flags.batch)
     % Set display options
     display.text = true;
     display.plot_during = false;
-    display.plot_after_frame = 0;
+    display.plot_after_frame = 50;
     if display.plot_during
         display.h_pf(1) = figure;
         display.h_pf(2) = figure;
