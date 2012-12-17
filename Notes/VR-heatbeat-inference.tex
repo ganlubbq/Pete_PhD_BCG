@@ -1,9 +1,14 @@
 \documentclass{article}
 
 \usepackage{amsmath}
+\usepackage{amsfonts}
 \usepackage{IEEEtrantools}
+
 \usepackage{algorithm}
 \usepackage{algorithmic}
+
+\usepackage{harvard}
+
 \usepackage{color}
 
 \newenvironment{meta}[0]{\color{red} \em}{}
@@ -11,7 +16,7 @@
 \newcommand{\bw}{\mathbf{w}}
 \newcommand{\bh}{\mathbf{h}}
 
-\title{Inference of Heartbeats in Cardiography Signals using Variable Rate Particle Filtering}
+\title{Inference of Heartbeats in Cardiography Signals using Particle Filtering}
 \author{Pete Bunch}
 \date{December 2012}
 
@@ -21,22 +26,170 @@
 
 \section{Introduction}
 
-Sometimes detecting heartbeats in a BCG or ECG signal is easy --- one can simply pick the largest peaks at roughly $1$ second intervals. Smoothing or differentiating may be required. At other times, more sophisticated algorithms may be required, because of low signal-to-noise ratios and inconsistency between heartbeats. Here, a particle filtering approach is described.
+Sometimes detecting heartbeats in a BCG or ECG signal is easy --- one can simply pick the largest peaks at roughly $1$ second intervals. Smoothing or differentiating may be required. At other times, more sophisticated algorithms may be necessary, because of low signal-to-noise ratios and inconsistency between heartbeats. Here, a particle filtering approach is described.
+
+
 
 \section{Preprocessing}
 
-Our BCG signals are corrupted by $50$Hz mains interference, as well as a DC bias which occasionally makes large jumps. To remove these effects, the discrete-time signal is bandpass filtered between $0.2$Hz and $15$Hz with a $300$ tap symmetric, non-causal FIR filter, and down-sampled to $30$Hz. This reduces the processing burden with minimal loss of useful information.
+Our BCG signals are corrupted by $50$Hz mains interference, as well as a DC bias which occasionally makes large jumps. To remove these effects, the discrete-time signal is bandpass filtered between $0.2$Hz and $15$Hz with a $300$-tap symmetric, non-causal FIR filter, and down-sampled to $30$Hz. This reduces the processing burden with minimal loss of useful information.
 
-\section{Model}
+
+
+\section{Variable Rate Models}
+
+We first describe the workings of the most general continuous-time changepoint, or ``variable rate'' model. Consider a period of time $0$ to $T$, between which observations, $\{y_1 \dots y_N\}$, are made at times $\{t_1 \dots t_N\}$. During this period, an unknown number of changepoints, $K$, occur at times $\{\tau_0, \tau_1 \dots \tau_K \}$, each with associated changepoint parameters, $\{ u_0, u_1 \dots u_K \}$. The pairs $\{\tau_k, u_k\}$ are the elements of a marked point process (MPP). The latent state is a continuous-time process denoted $x(t)$. Discrete sets containing multiple values over time will be written as, e.g. $y_{1:n} = \{y_1 \dots y_n\}$.
+
+The objective for inference will be to estimate the changepoint sequence. This will be denoted as $\theta = \{\tau_{0:K}, u_{0:K}\}$. At a particular time $t_n$, the sequence up until the current time will is $\theta_n = \{\tau_{j}, u_{j} \forall j : 0 \leq \tau_j < t_n \}$. It will also be useful to define a variable for the changepoints which occur between two observation times $[t_{n_1},t_{n_2})$, $\theta_{n_2 \setminus n_1} = \{\tau_{j}, u_{j} \forall j : t_{n_1} \leq \tau_j < t_{n_2} \}$.
+
+For notational simplicity, the following counting variables are introduced to keep track of the most recent changepoint to have occurred,
+%
+\begin{IEEEeqnarray}{rCl}
+ K(t)  & = & \max(k : \tau_k<t) \\
+ K_n   & = & K(t_n)     .
+\end{IEEEeqnarray}
+
+The changepoint sequence is assumed to be a Markov process,
+%
+\begin{IEEEeqnarray}{rCl}
+ \{\tau_k, u_k\} & \sim & p(\tau_k, u_k|\tau_{k-1}, u_{k-1}) \label{eq:cp_model}     .
+\end{IEEEeqnarray}
+
+This density will be constructed such that $P(\tau_k < \tau_{k-1}) = 0$. As in \cite{Whiteley2011}, a survivor function is defined as the probability that no new changepoint occurs before a given time,
+%
+\begin{IEEEeqnarray}{rCl}
+ S(\tau_k, u_k, t) &=& P(\tau_{k+1}>t|\tau_k, u_k) \nonumber \\
+              &=& 1 - \int_{\tau_k}^{t} p(\xi|\tau_{k}, u_k) d\xi     .
+\end{IEEEeqnarray}
+
+It is now possible to write down a prior for the changepoint sequence. This comprises a density term for each changepoint in the sequence and a survivor function term accounting for the probability that no additional changepoints occur within the time interval.
+
+\begin{IEEEeqnarray}{rCl}
+p(\theta_n) & = & S(\tau_{K_n},u_{K_n},t_n) p(u_0) p(\tau_0) \prod_{k=1}^{K_n} p(\tau_k, u_k| \tau_{k-1}, u_{k-1}) \label{eq:cp_sequence_prior}
+\end{IEEEeqnarray}
+
+The existence of such a density for a MPP is addressed in \cite{Jacobsen2006}. The number of changepoints, $K_n$, is not fixed. If $u_k$ varies over $\mathcal{U}$, and $\tau_k$ varies over the real line $\mathbb{R}$, then the space spanned by $\theta_n^-$ is the union,
+%
+\begin{IEEEeqnarray}{rCl}
+ \Theta & = & \bigcup_k \Theta_k \label{eq:theta_space} \\
+ \Theta_k & = & \{k\} \times \mathbb{R}^k \times \mathcal{U}^k     .
+\end{IEEEeqnarray}
+
+This closely resembles the variable-dimension spaces employed by reversible jump Markov chain Monte Carlo (MCMC) algorithms \cite{Green1995}.
+
+
+
+\subsection{Conditionally Deterministic Models} \label{sec:cd_models}
+
+Next we examine the class of variable rate models in which the state is completely specified by the changepoint sequence, with no additional random components. Such a process is commonly referred to as ``piecewise-deterministic'', as the latent state follows a deterministic path between changepoints. In this case, it is not necessary to discretise the state --- it may be kept as a continuous variable. Thus, the state transition can be described as,
+%
+\begin{IEEEeqnarray}{rCll}
+ x(t) & = & f(x_{K_n}, u_{K_n}, \tau_{K_n}, t) &, \tau_{K_n} < t \leq \tau_{K_{n}+1}    \label{eq:disc_time_state_diff_eq}     .
+\end{IEEEeqnarray}
+
+By choosing $t = \tau_{K_{n}+1}$, this equation specifies the state at the next changepoint time. Similarly, by choosing $t=t_n$, the state at the observation times may be evaluated --- these latter points will be denoted $\hat{x}_n$. To complete the framework, a probabilistic measurement model must be devised for the observation process, $p(y_n|\hat{x}_n)$.
+
+For convenience, we assume that $x_0$ is known in the following sections. This means that $x(t)$ may be calculated deterministically for all $t$ given $\theta$. This condition is easily relaxed by including $x_0$ as a random variable in the posterior distribution.
+
+
+
+\section{The Variable Rate Particle Filter} \label{sec:vrpf}
+
+The variable rate particle filter (VRPF) is described in \cite{Godsill2007,Godsill2007a,Whiteley2011}. The objective of the algorithm is to sequentially estimate the posterior distribution of the changepoint sequence, $p(\theta_{n}| y_{1:n})$, at each time $t_n$, which is defined on the same space as the prior density (\ref{eq:theta_space}). This distribution may be expanded using Bayes' rule,
+%
+\begin{IEEEeqnarray}{rCl}
+\IEEEeqnarraymulticol{3}{l}{ p(\theta_{n}^-|y_{1:n}) \propto p(y_n|\theta_{n}, y_{1:n-1}) } \nonumber \\
+ \qquad & & \times p(\theta_{n \setminus n-1}|\theta_{n-1}^-) p(\theta_{n-1}^-|y_{1:n-1}) \label{eq:vrpf_target}     .
+\end{IEEEeqnarray}
+
+The transition term, $p(\theta_{n \setminus n-1} | \theta_{n-1})$, has a similar form to the changepoint prior of (\ref{eq:cp_sequence_prior}) \cite{Jacobsen2006}, but an additional survivor function is included to account for the condition that changepoints cannot occur before $t_{n-1}$,
+%
+\begin{IEEEeqnarray}{rCl}
+\IEEEeqnarraymulticol{3}{l}{p(\theta_{n \setminus n-1} | \theta_{n-1})} \nonumber \\
+  &=& S(\tau_{K_n},u_{K_n}, t_n) / S(\tau_{K_{n-1}},u_{K_{n-1}}, t_{n-1}) \nonumber \\
+  & & \times \prod\limits_{j:t_{n-1} \leq \tau_j < t_n} p(\tau_j, u_j| \tau_{j-1}, u_{j-1})  \label{eq:cp_sequence_trandens}     .
+\end{IEEEeqnarray}
+
+Practically, because changepoints will be relatively rare events in most models, it is not likely that more than one new changepoint will occur between $t_{n-1}$ and $t_n$.
+
+The target distribution of (\ref{eq:vrpf_target}) cannot be calculated analytically, but may be approximated numerically, for example, by using a particle filter.
+
+A particle filter is an algorithm for approximating a probability distribution using a set of weighted samples (or ``particles'') drawn from that distribution using importance sampling (IS). In this case, each particle will be a set of changepoint times and parameters.
+%
+\begin{equation}
+ \hat{p}(\theta_{n}|y_{1:n}) = \sum_j w_n^{(j)} \delta_{\theta_{n}^{(j)}}(\theta_{n}) \label{eq:vrpf}
+\end{equation}
+
+where $\delta_x(X)$ is a unit probability mass at $X=x$. The particle filter works recursively. At the $n$th step, a particle, $\theta_{n-1}^{(i)}$, is first resampled from those approximating the filtering distribution at the $(n-1)$th step, using an appropriately chosen set of proposal weights, $\{v_{n-1}^{(j)}\}$ (where $\sum_j v_{n-1}^{(j)} = 1$),
+%
+\begin{equation}
+ q(\theta_{n-1}) = \sum_j v_{n-1}^{(j)} \delta_{\theta_{n-1}^{(j)}}(\theta_{n-1})     .
+\end{equation}
+
+The choice of weights determines the type of resampling used. The simplest choice, $v_{n-1}^{(j)} = 1/\aleph_F$ (where $\aleph_F$ is the number of filter particles) may be achieved by simply omitting this step all together and using the particles of $\hat{p}(\theta_{n-1}|y_{1:n-1})$. This, however, leads to degeneracy of the particle weights over time. Conventional resampling is achieved by using $v_{n-1}^{(j)} = w_{n-1}^{(j)}$. Any other choice results in an auxiliary particle filter \cite{Pitt1999}. For further discussion of resampling, see \cite{Cappe2007,Doucet2009}.
+
+Next, an extension to the changepoint sequence, $\theta_{n \setminus n-1}^{(i)}$, is sampled from an importance distribution, $q(\theta_{n \setminus n-1}|\theta_{n-1}^{(i)}, y_n)$, and concatenated with $\theta_{n-1}^{(i)}$ to create a proposal for $\theta_n^{(i)}$. Finally, the particle is weighted according to the ratio of the target and proposal densities,
+%
+\begin{IEEEeqnarray}{rCl}
+w_n^{(i)} & = & \frac{ p(\theta_{n}^{-(i)}|y_{1:n}) }{ q(\theta_{n}^{(i)}) } \nonumber \\
+    & \propto & \frac{ p(y_n|\theta_{n}^{(i)}, y_{1:n-1}) p(\theta_{n \setminus n-1}^{(i)}|\theta_{n-1}^{(i)}) p(\theta_{n-1}^{(i)}|y_{1:n-1}) }{ q(\theta_{n-1}^{(i)}) q(\theta_{n \setminus n-1}^{(i)}|\theta_{n-1}^{(i)}, y_n) } \nonumber \\
+    & =       & \frac{w_{n-1}^{(i)}}{v_{n-1}^{(i)}} \times \frac{ p(y_n|\theta_{n}^{(i)}, y_{1:n-1}) p(\theta_{n \setminus n-1}^{(i)}|\theta_{n-1}^{(i)}) }{ q(\theta_{n \setminus n-1}^{(i)}|\theta_{n-1}^{(i)}, y_n) } \label{eq:vrpf_weights}     .
+\end{IEEEeqnarray}
+
+The normalisation may be enforced by scaling the weights so that they sum to $1$.
+
+For the most basic ``bootstrap'' \cite{Gordon1993} form of the VRPF, $\theta_{n \setminus n-1}$ may be proposed from the prior transition density (\ref{eq:cp_sequence_trandens}). This can be achieved by sampling new changepoints sequentially from the transition model (\ref{eq:cp_model}) until one falls after the current time, $t_n$. This final future changepoint is discarded. (This process can be thought of as sampling an entire future changepoint sequence from $t_{n-1}$ onwards, and then marginalising those which fall after $t_n$.) The bootstrap proposal leads to the usual simplification of the weight formula,
+%
+\begin{IEEEeqnarray}{rCl}
+w_n^{(i)} & = & \frac{w_{n-1}^{(i)}}{v_{n-1}^{(i)}} \times p(y_n|\theta_{n}^{(i)}, y_{1:n-1}) \label{eq:bootstrap_vrpf_weights}     .
+\end{IEEEeqnarray}
+
+It only remains to consider the likelihood term required for evaluation of the importance weights, $p(y_n|\theta_n^-, y_{1:n-1})$. The form of this term depends on the particular model under consideration.
+
+
+
+\subsection{Conditionally Deterministic Likelihoods} \label{sec:pd-vrpf}
+
+When the conditionally deterministic models of section~\ref{sec:cd_models} are used, the state at observation time $t_n$ is specified by the changepoint sequence $\theta_n$ (plus the initial state, $x_0$), using (\ref{eq:disc_time_state_diff_eq}). Thus, the required likelihood term is simply given by,
+%
+\begin{IEEEeqnarray}{rCl}
+ p(y_n|\theta_{n}, y_{1:n-1}) & = & p(y_n|\hat{x}_n)     .
+\end{IEEEeqnarray}
+
+This leads to a piecewise-deterministic variable rate particle filter.
+
+In \cite{Morelande2009a}, an improvement to this algorithm for conditionally-deterministic models was introduced in which the linear parts of the motion parameters are Rao-Blackwellised. This modification will be useful for heartbeat inference. The changepoint parameters are split into analytic and intractable parts,
+%
+\begin{IEEEeqnarray}{rCl}
+ u_k = \left[ u_{k,a}, u_{k,i} \right]^T.
+\end{IEEEeqnarray}
+%
+The particle filter is used to estimate only the nonlinear part, while the distribution of the linear part is calculated analytically for each particle, $p(u_{k,a}|u_{1:k,i}, y_{1:n})$. If the evolution of $u_{k,a}$ is linear-Gaussian, a Kalman filter is used; if it has a finite state-space, an HMM filter is used.
+
+Provided the state depends only on the most recent changepoint, the likelihood term for the particle filter is now given by,
+%
+\begin{IEEEeqnarray}{rCl}
+ p(y_n | \theta_n, y_{1:n-1}) & = & \int p(y_n | \theta_n, u_{a,K_n}) p(u_{a,K_n}|y_{1:n-1}) du_{a,K_n}      .
+\end{IEEEeqnarray}
+
+
+
+
+\subsection{Improving the Variable Rate Particle Filter}
+
+The basic, bootstrap VRPF often performs poorly if changepoints are not obvious until significantly after they occur (as is often the case). For example, in a tracking scenario, if a jump occurs in the acceleration, but only the position is observed, then this change may not be obvious until a number of additional observations have arrived. In this case, the estimation may be improved by the introduction of resample-move (RM) steps \cite{Gilks2001}. In an RM scheme, optional Metropolis-Hastings (MH) moves are conducted to alter the particle states after the importance sampling has taken place. For variable rate models, any one of the previous changepoints, $\tau_k$, or associated parameters, $u_k$, could be adjusted. Because more observations are available than when the changepoint was first proposed, it may be possible to construct more informed proposals and so move the changepoints towards regions with higher posterior probability. It is even possible to retrospectively add or remove changepoints, using reversible jump MH moves \cite{Green1995}. Variable rate particle filters using RM with piecewise deterministic models are described in \cite{Whiteley2011,Gilholm2008}.
+
+Rather than conducting the IS and MH steps separately, it is possible to combine them using the framework of SMC samplers \cite{DelMoral2006}. This was suggested in \cite{Whiteley2011}, again for piecewise deterministic dynamics, but the extension to conditionally linear-Gaussian models is straightforward.
+
+
+\section{BCG Model}
 
 We model the cardiography signal as a sequence of similar, irregularly-spaced heartbeat waveforms in noise, using a variable rate framework. The heartbeat start times are represented by a sequence of changepoints, $\{\tau_k\}$, and the corresponding waveforms by a the vector sequence, $\{\bw_k\}$. These vectors are sampled at the same rate as the signal. The sampled signal is composed of measurements, $\{y_n\}$, at times $\{t_n\}$ spaced by sampling period $T_s$.
-
-We will need some useful index variables, $K(t) = \max\{k : \tau_k<t\}$, $K_n = K(t_n)$, which reference the most recent changepoint.
 
 The signal is modelled as,
 %
 \begin{IEEEeqnarray}{rCl}
- s_n = s(t_n) & = & \bh(t,\tau_{K_n})^T \bw     ,
+ x(t) & = & \bh(t,\tau_{K_n})^T \bw     ,
 \end{IEEEeqnarray}
 %
 $\bh(t,\tau_{K_n})$ is a vector of interpolation coefficients. Because of the anti-aliasing filter, we can achieve perfect interpolation using,
@@ -58,37 +211,36 @@ We need a model for the evolution of $\tau_k$. Examining the intervals between s
 Finally, we assume a Gaussian observation model,
 %
 \begin{IEEEeqnarray}{rCl}
- y_n & = & \mathcal{N}(y_n|s_n,\sigma_y^2)     .
+ y_n & = & \mathcal{N}(y_n|x(t_n),\sigma_y^2)     .
 \end{IEEEeqnarray}
 
-\subsection{Clutter}
+\subsection{Interference}
 
-The data is intermittently interrupted by high amplitude noise, caused by vibrations, the subject rolling over, or electrical effects. We need to be able to detect and correct for such clutter. An indicator variable, $\lambda_n$ is introduced for each observation to indicate the presence of clutter. The new observation model is,
+The data is intermittently interrupted by various forms of interference, including the subject rolling over, vibrations, electrical effects, etc. We need to be able to detect and account for such phenomena. The models used here distinguish between two sorts of interference: short bursts of high-amplitude noise (clutter) and longer periods of vibration of any amplitude (disturbances). Clutter occurs on the time-scale of the observations, and disturbances on the time-scale of the heartbeats. Thus, $c_n=\{1,0\}$ indicates whether the observation at time $t_n$ is clutter or not, and $d_k=\{1,0\}$ indicates whether the heartbeat from $\tau_k$ to $\tau_{k+1}$ is disturbed or not. Markovian priors are used. To avoid conflicts, $P(c_n = 1 | d_{K_n} = 1) = 0$. The resulting observation model is,
 %
 \begin{IEEEeqnarray}{rCl}
- y_n & = & \begin{cases} \mathcal{N}(y_n|s_n,\sigma_y^2) & \lambda_n = 0 \\ \mathcal{N}(y_n|0,\sigma_C^2) & \lambda_n = 1 \end{cases}      .
+ y_n & = & \begin{cases} \mathcal{N}(y_n|s_n,\sigma_y^2) & c_n = 0, d_{K_n} = 0 \\ 
+                         \mathcal{C}(y_n|0,\sigma_D) & d_{K_n} = 1 \\
+                         \mathcal{N}(y_n|0,\sigma_C^2) & c_{n} = 1  \end{cases}      .
 \end{IEEEeqnarray}
-
-$\lambda_n$ is assumed to follow a Markov process with fixed transition probabilities.
+%
+$\mathcal{C}(\cdot|x_0,\gamma)$ denotes a Cauchy distribution with mode $x_0$ and length scale $\gamma$.
 
 
 \section{Inference Algorithm}
 
-With this model we can do inference using a variable rate particle filter. In addition, because of the linear-Gaussian model assumptions, we can Rao-Blackwellise the waveform variable, $\bw_k$, which will give us a huge dimensionality reduction. Hooray! The resulting algorithm will be a similar to those of [Morelande and Gordon, 2009] and [Whiteley, Johanssen, Godsill, 2011].
+With this model we can do inference using a variable rate particle filter. In addition, because of the linear-Gaussian model assumptions, we can Rao-Blackwellise the waveform variable, $\bw_k$, which will give us a huge dimensionality reduction. Hooray! The resulting algorithm will be a similar to those of \cite{Morelande2009a} and \cite{Whiteley2011}.
 
-We want our particle filter to estimate the changepoint times and also the parameters. Additional parameters could be included.
+We want our particle filter to estimate the changepoint times and also the parameters,
 %
 \begin{IEEEeqnarray}{rCl}
- \mathbf{u}_k & = & \begin{bmatrix} \Delta_k \end{bmatrix}     .
+ u_k & = & \begin{bmatrix} \Delta_k \\
+                           d_k \end{bmatrix}     .
 \end{IEEEeqnarray}
 
-As usual, we bundle all these into a single variable,
-%
-\begin{IEEEeqnarray}{rCl}
- \theta_n & = & \left\{ \tau_j, u_j \forall j : 0 \leq \tau_j < t_n \right\}     .
-\end{IEEEeqnarray}
 
-\subsection{Clutter-free}
+
+\subsection{Interference-free}
 
 The target distribution is,
 %
@@ -96,39 +248,68 @@ The target distribution is,
  p(\theta_n | y_{1:n})     .
 \end{IEEEeqnarray}
 
-A standard variable rate particle filter can now be applied, using bootstrap proposals. The likelihood is a little bit tricky,
+A standard variable rate particle filter can now be applied, using bootstrap proposals, and the Rao-Blackwellisation of $\bw_k$,
 %
 \begin{IEEEeqnarray}{rCl}
  p(y_n | \theta_n, y_{1:n-1}) & = & \int p(y_n | \theta_n, \bw_{K_n}) p(\bw_{K_n} | \theta_n, y_{1:n-1}) d\bw_{K_n} \nonumber \\
                               & = & \int p(y_n | s(t_n)) p(\bw_{K_n} | \theta_n, y_{1:n-1}) d\bw_{K_n} \nonumber \\
-                              & = & \int \mathcal{N}(y_n|\bh(t,\tau_{K_n})^T \bw_{K_n},\sigma_y^2) \mathcal{N}(\bw_{K_n}|\mathbf{m}_{n-1},\mathbf{P}_{n-1})      .
+                              & = & \int \mathcal{N}(y_n|\bh(t,\tau_{K_n})^T \bw_{K_n},\sigma_y^2) \mathcal{N}(\bw_{K_n}|\mathbf{m}_{n-1},\mathbf{P}_{n-1}) d\bw_{K_n} \label{eq:noclut_lhood}      .
 \end{IEEEeqnarray}
 
 A Kalman filter is maintained for each particle to estimate the density over $\bw_{K_n}$. If no changepoint occurs between $t_{n-1}$ and $t_n$, then,
 %
 \begin{IEEEeqnarray}{rCl}
- p(\bw_{K_n} | \theta_n^-, y_{1:n}) & \propto & p(y_n | \bw_{K_n}, \theta_n^-) p(\bw_{K_n} | \theta_n^-, y_{1:n-1}) \nonumber \\
+ p(\bw_{K_n} | \theta_n, y_{1:n}) & \propto & p(y_n | \bw_{K_n}, \theta_n) p(\bw_{K_n} | \theta_n, y_{1:n-1}) \nonumber \\
                                    & =       & \mathcal{N}(y_n|\bh(t,\tau_{K_n})^T \bw_{K_n},\sigma_y^2) \mathcal{N}(\bw_{K_n}|\mathbf{m}_{n-1},\mathbf{P}_{n-1})     .
 \end{IEEEeqnarray}
 
 Alternatively, if a changepoint does occur between $t_{n-1}$ and $t_n$, then,
 %
 \begin{IEEEeqnarray}{rCl}
- p(\bw_{K_n} | \theta_n^-, y_{1:n}) & = & p(y_n | \bw_{K_n}, \theta_n^-) \int p(\bw_{K_n} | \bw_{K_n-1}) p(\bw_{K_n-1} | \theta_n^-, y_{1:n-1}) d\bw_{K_n-1} \nonumber \\
-                                           & = & \mathcal{N}(y_n|a_{K_n} b(t,\tau_{K_n})^T \mathbf{w}_{K_n},\sigma_y^2) \int \mathcal{N}(\bw_{K_n}|\bw_{K_n-1},Q_w) \mathcal{N}(\bw_{K_n-1}|\mathbf{m}_{n-1},\mathbf{P}_{n-1})     .
+ p(\bw_{K_n} | \theta_n, y_{1:n}) & = & p(y_n | \bw_{K_n}, \theta_n) \int p(\bw_{K_n} | \bw_{K_n-1}) p(\bw_{K_n-1} | \theta_n, y_{1:n-1}) d\bw_{K_n-1} \nonumber \\
+                                           & = & \mathcal{N}(y_n|a_{K_n} b(t,\tau_{K_n})^T \mathbf{w}_{K_n},\sigma_y^2) \nonumber \\
+                                           &   & \times \int \mathcal{N}(\bw_{K_n}|\bw_{K_n-1},Q_w) \mathcal{N}(\bw_{K_n-1}|\mathbf{m}_{n-1},\mathbf{P}_{n-1}) d\bw_{K_n}     .
 \end{IEEEeqnarray}
 
 So everything's Gaussian, and can be calculated in closed form. Jolly good.
 
-\subsection{With Clutter}
+\subsection{With Clutter and Disturbances}
+
+If we propose disturbances from the prior, then these do not affect the derivation, except that $p(y_n | \theta_n, y_{1:n-1}) = \mathcal{C}(y_n|0,\sigma_D)$ if $d_{K_n}=1$. However, we could propose them from the optimal proposal distribution. This is a topic for further investigation.
 
 The target distribution for the particle filter is now,
 %
 \begin{IEEEeqnarray}{rCl}
- p(\theta_n, \lambda_{1:n} | y_{1:n})     .
+ p(\theta_n, c_{1:n} | y_{1:n})     .
 \end{IEEEeqnarray}
 %
-Note that if we weren't Rao-Blackwellising $\bw$ then we could calculate $p(\lambda_n|\theta_n, y_{1:n})$ in closed form, but since we are, we can't, because it would mess up the Kalman filters. We can however, propose exactly from $p(\lambda_n|\theta_n, y_{1:n})$.
+Note that if we weren't Rao-Blackwellising $\bw$ then we could calculate $p(\lambda_n|\theta_n, y_{1:n})$ in closed form, but since we are, we can't, because it would mess up the Kalman filters. We can however, propose exactly from the optimal proposal density,
+%
+\begin{IEEEeqnarray}{rCl}
+ p(c_{n}|\theta_n, c_{1:n-1}, y_{1:n}) & = & \frac{ p(y_n | \theta_n, c_{1:n}, y_{1:n-1}) p(c_{n}|c_{n-1}) }{ p(y_n | \theta_n, c_{1:n-1}, y_{1:n-1}) }     .
+\end{IEEEeqnarray}
+%
+If we still use a bootstrap proposal for $\theta_n$, then the weight is given by,
+%
+\begin{IEEEeqnarray}{rCl}
+ w_n & = & p(y_n | \theta_n, c_{1:n-1}, y_{1:n-1}) \nonumber \\
+     & = & \sum_{c_n} p(y_n | \theta_n, c_{1:n}, y_{1:n-1}), p(c_n | c_{1:n-1})     ,
+\end{IEEEeqnarray}
+%
+where $p(y_n | \theta_n, c_{1:n}, y_{1:n-1})$ is given by (\ref{eq:noclut_lhood}) if $c_n=0$, and $\mathcal{N}(y_n|0,\sigma_C^2)$ if $c_n=1$.
+
+
+
+\subsection{Initialisation}
+
+Special consideration is needed for the sampling of $\tau_0$, and $u_0$, the first changepoint time and parameters, and the choice of $\mathbf{m}_0$ and $\mathbf{P}_0$.
+
+$u_0$ can be sampled from a prior, $p(u_0$.
+
+$\tau_0$ really needs to be sampled from $p(tau_0 | tau_{-1}<0, \tau_0>0)$. We can do this by sampling $\tau_{-1}$ from the prior, then sampling the difference $\tau_{0}-\tau_{-1}$ from a modified transition density, then sampling $\tau_0$ uniformly between $0$ and $u_{-1}$.
+
+We could use a completely uninformative prior for $\bw_0$, but this risks the filter ``locking on'' to a quasi periodic structure other than the actual heartbeat, e.g. from peak to peak instead of trough to trough. To encourage an accurate lock, we use a medium variance and a crude heartbeat template. This can be as simple as a vector a zeros with an appropriately space $+1$ and $-1$ corresponding to the major positive and negative peaks.
+
 
 
 \subsection{Fixed Lag ``Smoother''}
@@ -141,16 +322,16 @@ The particle filter algorithm doesn't work very well. This is because it takes m
 %
 and we allow changes to $\theta_{n+L \setminus n}$ and $\lambda_{n+1:n+L}$. In addition, we can now move forward in batches rather than running a particle filter at every observation time. The batch size, $S$, will need to be smaller than the window size, $L$.
 
-Such a fixed lag smoother uses the SMC sampler algorithm of [Doucet, Briers, Senecal, 2006], which makes it distinct from (although still pretty similar to) the method of [Whiteley, Johansen, Godsill, 2011].
+Such a fixed lag smoother uses the SMC sampler algorithm of \cite{Doucet2006}, which makes it distinct from (although still pretty similar to) the method of \cite{Whiteley2011}.
 
 \begin{algorithm}
 \begin{algorithmic}
   \FOR{$n = 0,S,2S,\dots$}
     \FOR{$i = 1,\dots,N_F$}
-      \STATE Select a particle $\{\theta_{n+L-S}, \lambda_{1:n+L-S}\}^{(i)}$ with probability $w_{n-S}^{(i)}$
+      \STATE Select a particle $\{\theta_{n+L-S}, c_{1:n+L-S}\}^{(i)}$ with probability $w_{n-S}^{(i)}$
       \STATE Sample $\theta_{n+L \setminus n}^{'(i)} \sim p(\cdot|\theta_n^{(i)})$
       \FOR{l = 1,\dots,L}
-        \STATE Sample $\lambda_{n+l}^{'(i)} \sim p(\cdot|\theta_{n+L}^{(i)}, \lambda_{n+l-1}^{(i)}, y_{1:n})$
+        \STATE Sample $c_{n+l}^{'(i)} \sim p(\cdot|\theta_{n+L}^{(i)}, c_{n+l-1}^{(i)}, y_{1:n})$
       \ENDFOR
       \STATE $w_n^{(i)} = p(y_{n+1:n+L}|\theta_{n+L}^{'(i)}, y_{1:n})/p(y_{n+1:n+L-S}|\theta_{n+L-S}, y_{1:n})$
     \ENDFOR
@@ -158,5 +339,23 @@ Such a fixed lag smoother uses the SMC sampler algorithm of [Doucet, Briers, Sen
 \end{algorithmic}
 \end{algorithm}
 
+
+
+\section{Graphs}
+
+Clear, difficult, and very difficult signal
+
+Inference output on a sample of each.
+
+Template initialisation and evolution.
+
+Inferred heartbeat periods.
+
+Clutter section and results.
+
+
+
+\bibliographystyle{dcu}
+\bibliography{D:/pb404/Dropbox/PhD/Cleanbib}
 
 \end{document} 
