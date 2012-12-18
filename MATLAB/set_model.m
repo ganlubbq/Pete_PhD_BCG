@@ -1,7 +1,7 @@
 % Set model parameters
 
 % Basics
-model.K = 2000;                                  % Number of observations
+model.K = 500;                                  % Number of observations
 model.fs = 30;                                  % Sampling frequency of observations (after load_and_calibrate, which downsamples)
 model.dp = 2;                                   % Number of changepoint parameter dimensions (beat period)
 model.dw = 40;                                  % Number of samples in the beat waveform

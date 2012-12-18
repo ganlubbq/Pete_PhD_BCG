@@ -1,10 +1,6 @@
-function [ time, F ] = load_and_calibrate(K, datafilename, calibfilename)
+function [ time, F ] = load_and_calibrate(K, datafilename, calibfilename, t_start, t_stop, offset)
 
 % Set things
-% t_start = 2.8E6;    % Time index to start at
-% t_stop = 2.9E6;     % Time index to stop at
-t_start = 6.05E6;    % Time index to start at
-t_stop = 7.05E6;     % Time index to stop at
 dsr = 10;            % Down sampling ratio - sets low pass filter cut-off (5 --> 30Hz)
 
 % Constants
@@ -56,13 +52,6 @@ time = time - time(1);
 time = time / fs;
 
 % Select a little chunk
-% offset = 315;       % Good clear section with 2.8-2.9E6
-% offset = 6716;      % Good clear section with 2.8-2.9E6
-% offset = 58;        % Difficult section with 6.05-7.05E6
-% offset = 62025;     % Really difficult section with 6.05-7.05E6
-offset = 62010;     % Really difficult section with 6.05-7.05E6 not beat aligned
-% offset = 9023;      % Clutter section with 6.05-7.05E6
-% offset = 27010;     % Clutter section with 6.05-7.05E6
 F = F(offset+1:offset+K)';
 F = F-mean(F);
 F(1) = NaN;
