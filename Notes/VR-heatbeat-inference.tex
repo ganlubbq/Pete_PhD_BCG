@@ -1,5 +1,8 @@
 \documentclass{article}
 
+\usepackage[pdftex]{graphicx}
+\usepackage[caption=false,font=footnotesize]{subfig}
+
 \usepackage{amsmath}
 \usepackage{amsfonts}
 \usepackage{IEEEtrantools}
@@ -10,6 +13,8 @@
 \usepackage{harvard}
 
 \usepackage{color}
+
+\graphicspath{{../graphs/}}
 
 \newenvironment{meta}[0]{\color{red} \em}{}
 \newcommand{\sinc}{{\rm sinc}}
@@ -68,7 +73,7 @@ It is now possible to write down a prior for the changepoint sequence. This comp
 p(\theta_n) & = & S(\tau_{K_n},u_{K_n},t_n) p(u_0) p(\tau_0) \prod_{k=1}^{K_n} p(\tau_k, u_k| \tau_{k-1}, u_{k-1}) \label{eq:cp_sequence_prior}
 \end{IEEEeqnarray}
 
-The existence of such a density for a MPP is addressed in \cite{Jacobsen2006}. The number of changepoints, $K_n$, is not fixed. If $u_k$ varies over $\mathcal{U}$, and $\tau_k$ varies over the real line $\mathbb{R}$, then the space spanned by $\theta_n^-$ is the union,
+The existence of such a density for a MPP is addressed in \cite{Jacobsen2006}. The number of changepoints, $K_n$, is not fixed. If $u_k$ varies over $\mathcal{U}$, and $\tau_k$ varies over the real line $\mathbb{R}$, then the space spanned by $\theta_n$ is the union,
 %
 \begin{IEEEeqnarray}{rCl}
  \Theta & = & \bigcup_k \Theta_k \label{eq:theta_space} \\
@@ -84,7 +89,7 @@ This closely resembles the variable-dimension spaces employed by reversible jump
 Next we examine the class of variable rate models in which the state is completely specified by the changepoint sequence, with no additional random components. Such a process is commonly referred to as ``piecewise-deterministic'', as the latent state follows a deterministic path between changepoints. In this case, it is not necessary to discretise the state --- it may be kept as a continuous variable. Thus, the state transition can be described as,
 %
 \begin{IEEEeqnarray}{rCll}
- x(t) & = & f(x_{K_n}, u_{K_n}, \tau_{K_n}, t) &, \tau_{K_n} < t \leq \tau_{K_{n}+1}    \label{eq:disc_time_state_diff_eq}     .
+ x(t) & = & f(x_{K_n}, u_{K_n}, \tau_{K_n}, t) &, \qquad \tau_{K_n} < t \leq \tau_{K_{n}+1}    \label{eq:disc_time_state_diff_eq}     .
 \end{IEEEeqnarray}
 
 By choosing $t = \tau_{K_{n}+1}$, this equation specifies the state at the next changepoint time. Similarly, by choosing $t=t_n$, the state at the observation times may be evaluated --- these latter points will be denoted $\hat{x}_n$. To complete the framework, a probabilistic measurement model must be devised for the observation process, $p(y_n|\hat{x}_n)$.
@@ -98,8 +103,8 @@ For convenience, we assume that $x_0$ is known in the following sections. This m
 The variable rate particle filter (VRPF) is described in \cite{Godsill2007,Godsill2007a,Whiteley2011}. The objective of the algorithm is to sequentially estimate the posterior distribution of the changepoint sequence, $p(\theta_{n}| y_{1:n})$, at each time $t_n$, which is defined on the same space as the prior density (\ref{eq:theta_space}). This distribution may be expanded using Bayes' rule,
 %
 \begin{IEEEeqnarray}{rCl}
-\IEEEeqnarraymulticol{3}{l}{ p(\theta_{n}^-|y_{1:n}) \propto p(y_n|\theta_{n}, y_{1:n-1}) } \nonumber \\
- \qquad & & \times p(\theta_{n \setminus n-1}|\theta_{n-1}^-) p(\theta_{n-1}^-|y_{1:n-1}) \label{eq:vrpf_target}     .
+\IEEEeqnarraymulticol{3}{l}{ p(\theta_{n}|y_{1:n}) \propto p(y_n|\theta_{n}, y_{1:n-1}) } \nonumber \\
+ \qquad & & \times p(\theta_{n \setminus n-1}|\theta_{n-1}) p(\theta_{n-1}|y_{1:n-1}) \label{eq:vrpf_target}     .
 \end{IEEEeqnarray}
 
 The transition term, $p(\theta_{n \setminus n-1} | \theta_{n-1})$, has a similar form to the changepoint prior of (\ref{eq:cp_sequence_prior}) \cite{Jacobsen2006}, but an additional survivor function is included to account for the condition that changepoints cannot occur before $t_{n-1}$,
@@ -219,7 +224,7 @@ Finally, we assume a Gaussian observation model,
 The data is intermittently interrupted by various forms of interference, including the subject rolling over, vibrations, electrical effects, etc. We need to be able to detect and account for such phenomena. The models used here distinguish between two sorts of interference: short bursts of high-amplitude noise (clutter) and longer periods of vibration of any amplitude (disturbances). Clutter occurs on the time-scale of the observations, and disturbances on the time-scale of the heartbeats. Thus, $c_n=\{1,0\}$ indicates whether the observation at time $t_n$ is clutter or not, and $d_k=\{1,0\}$ indicates whether the heartbeat from $\tau_k$ to $\tau_{k+1}$ is disturbed or not. Markovian priors are used. To avoid conflicts, $P(c_n = 1 | d_{K_n} = 1) = 0$. The resulting observation model is,
 %
 \begin{IEEEeqnarray}{rCl}
- y_n & = & \begin{cases} \mathcal{N}(y_n|s_n,\sigma_y^2) & c_n = 0, d_{K_n} = 0 \\ 
+ y_n & = & \begin{cases} \mathcal{N}(y_n|s_n,\sigma_y^2) & c_n = 0, d_{K_n} = 0 \\
                          \mathcal{C}(y_n|0,\sigma_D) & d_{K_n} = 1 \\
                          \mathcal{N}(y_n|0,\sigma_C^2) & c_{n} = 1  \end{cases}      .
 \end{IEEEeqnarray}
@@ -227,7 +232,7 @@ The data is intermittently interrupted by various forms of interference, includi
 $\mathcal{C}(\cdot|x_0,\gamma)$ denotes a Cauchy distribution with mode $x_0$ and length scale $\gamma$.
 
 
-\section{Inference Algorithm}
+\section{BCG Heartbeat Inference}
 
 With this model we can do inference using a variable rate particle filter. In addition, because of the linear-Gaussian model assumptions, we can Rao-Blackwellise the waveform variable, $\bw_k$, which will give us a huge dimensionality reduction. Hooray! The resulting algorithm will be a similar to those of \cite{Morelande2009a} and \cite{Whiteley2011}.
 
@@ -275,7 +280,7 @@ So everything's Gaussian, and can be calculated in closed form. Jolly good.
 
 \subsection{With Clutter and Disturbances}
 
-If we propose disturbances from the prior, then these do not affect the derivation, except that $p(y_n | \theta_n, y_{1:n-1}) = \mathcal{C}(y_n|0,\sigma_D)$ if $d_{K_n}=1$. However, we could propose them from the optimal proposal distribution. This is a topic for further investigation.
+If we propose disturbances from the prior, then these do not affect the derivation, except that $p(y_n | \theta_n, y_{1:n-1}) = \mathcal{C}(y_n|0,\sigma_D)$ if $d_{K_n}=1$. However, a better solution is to propose them from the optimal proposal distribution. This is achieved in a similar way to the clutter proposal described next.
 
 The target distribution for the particle filter is now,
 %
@@ -283,7 +288,7 @@ The target distribution for the particle filter is now,
  p(\theta_n, c_{1:n} | y_{1:n})     .
 \end{IEEEeqnarray}
 %
-Note that if we weren't Rao-Blackwellising $\bw$ then we could calculate $p(\lambda_n|\theta_n, y_{1:n})$ in closed form, but since we are, we can't, because it would mess up the Kalman filters. We can however, propose exactly from the optimal proposal density,
+Note that if we weren't Rao-Blackwellising $\bw$ then we could calculate $p(c_n|\theta_n, y_{1:n})$ in closed form, but since we are, we can't, because it would mess up the Kalman filters. We can however, propose exactly from the optimal proposal density,
 %
 \begin{IEEEeqnarray}{rCl}
  p(c_{n}|\theta_n, c_{1:n-1}, y_{1:n}) & = & \frac{ p(y_n | \theta_n, c_{1:n}, y_{1:n-1}) p(c_{n}|c_{n-1}) }{ p(y_n | \theta_n, c_{1:n-1}, y_{1:n-1}) }     .
@@ -304,11 +309,11 @@ where $p(y_n | \theta_n, c_{1:n}, y_{1:n-1})$ is given by (\ref{eq:noclut_lhood}
 
 Special consideration is needed for the sampling of $\tau_0$, and $u_0$, the first changepoint time and parameters, and the choice of $\mathbf{m}_0$ and $\mathbf{P}_0$.
 
-$u_0$ can be sampled from a prior, $p(u_0$.
+$u_0$ can be sampled from a prior, $p(u_0)$.
 
-$\tau_0$ really needs to be sampled from $p(tau_0 | tau_{-1}<0, \tau_0>0)$. We can do this by sampling $\tau_{-1}$ from the prior, then sampling the difference $\tau_{0}-\tau_{-1}$ from a modified transition density, then sampling $\tau_0$ uniformly between $0$ and $u_{-1}$.
+$\tau_0$ really needs to be sampled from $p(\tau_0 | \tau_{-1}<0, \tau_0>0)$. We can do this by sampling $u_{-1}$ from the prior, then sampling the difference $\tau_{0}-\tau_{-1}$ from a modified transition density, then sampling $\tau_0$ uniformly between $0$ and $u_{-1}$.
 
-We could use a completely uninformative prior for $\bw_0$, but this risks the filter ``locking on'' to a quasi periodic structure other than the actual heartbeat, e.g. from peak to peak instead of trough to trough. To encourage an accurate lock, we use a medium variance and a crude heartbeat template. This can be as simple as a vector a zeros with an appropriately space $+1$ and $-1$ corresponding to the major positive and negative peaks.
+We could use a completely uninformative prior for $\bw_0$, but this risks the filter ``locking on'' to a quasi-periodic structure other than the actual heartbeat, e.g. from peak to peak instead of trough to trough. This is problematic because of the variability of heartbeat periods. To encourage an accurate lock, we use a medium variance and a crude heartbeat template. This can be as simple as a vector a zeros with an appropriately spaced $+1$ and $-1$ corresponding to the major positive and negative peaks.
 
 
 
@@ -317,10 +322,10 @@ We could use a completely uninformative prior for $\bw_0$, but this risks the fi
 The particle filter algorithm doesn't work very well. This is because it takes many observations to observe a heartbeat, and often the right particles have been discarded before they are needed. The solution to this is to use a fixed-lag smoother. The target distribution is,
 %
 \begin{IEEEeqnarray}{rCl}
- p(\theta_{n+L}, \lambda_{1:n+L} | y_{1:n+L})     ,
+ p(\theta_{n+L}, c_{1:n+L} | y_{1:n+L})     ,
 \end{IEEEeqnarray}
 %
-and we allow changes to $\theta_{n+L \setminus n}$ and $\lambda_{n+1:n+L}$. In addition, we can now move forward in batches rather than running a particle filter at every observation time. The batch size, $S$, will need to be smaller than the window size, $L$.
+and we allow changes to $\theta_{n+L \setminus n}$ and $c_{n+1:n+L}$. In addition, we can now move forward in batches rather than running a particle filter at every observation time. The batch size, $S$, will need to be smaller than the window size, $L$.
 
 Such a fixed lag smoother uses the SMC sampler algorithm of \cite{Doucet2006}, which makes it distinct from (although still pretty similar to) the method of \cite{Whiteley2011}.
 
@@ -339,20 +344,77 @@ Such a fixed lag smoother uses the SMC sampler algorithm of \cite{Doucet2006}, w
 \end{algorithmic}
 \end{algorithm}
 
+In the latest versions, there is also a resample-move step on $u_{K_n}$ prior to sampling $\theta_{n+L \setminus n}^{'}$.
+
 
 
 \section{Graphs}
 
-Clear, difficult, and very difficult signal
+Figure~\ref{fig:signals} shows some typical heartbeat signals from Ashley Butcher. Figure~\ref{fig:signals_easy} is an ``easy'' signal, where heartbeats could easily be extracted simply by peak finding due to the large single positive peak per beat. Figure~\ref{fig:signals_ok} is a more challenging signal, due to the lack of single large peak, but still has a regular structure to the beats, which can be picked out by peak finding after various filtering operations. Figure~\ref{fig:signals_hard} is a really tough section, where I think the standard methods will struggle. The heartbeat structure varies significantly between beats, with peaks changing significantly in amplitude and sometimes disappearing completely.
+%
+\begin{figure}
+\centering
+\subfloat[]{\includegraphics[width=0.9\columnwidth]{BCG_signal_easy.pdf}\label{fig:signals_easy}} \\
+\subfloat[]{\includegraphics[width=0.9\columnwidth]{BCG_signal_ok.pdf}\label{fig:signals_ok}} \\
+\subfloat[]{\includegraphics[width=0.9\columnwidth]{BCG_signal_hard.pdf}\label{fig:signals_hard}}
+\caption{BCG signals from (a) easy (b) moderate and (c) hard sections.}
+\label{fig:signals}
+\end{figure}
 
-Inference output on a sample of each.
+Figure~\ref{fig:timing} shows the particle filter inference results for the three previous examples.
+%
+\begin{figure}
+\centering
+\subfloat[]{\includegraphics[width=0.9\columnwidth]{BCG_timing_reconstruction_easy.pdf}\label{fig:timing_easy}} \\
+\subfloat[]{\includegraphics[width=0.9\columnwidth]{BCG_timing_reconstruction_ok.pdf}\label{fig:timing_ok}} \\
+\subfloat[]{\includegraphics[width=0.9\columnwidth]{BCG_timing_reconstruction_hard.pdf}\label{fig:timing_hard}}
+\caption{BCG signals from (a) easy (b) moderate and (c) hard sections, overlayed with the particle filter reconstruction (blue) with $\pm$2 standard deviation interval (dashed) and inferred heartbeat start times (green stars).}
+\label{fig:timing}
+\end{figure}
 
-Template initialisation and evolution.
+Figure~\ref{fig:periods} shows the inferred beat periods for the three previous examples.
+%
+\begin{figure}
+\centering
+\subfloat[]{\includegraphics[width=0.9\columnwidth]{BCG_periods_easy.pdf}\label{fig:periods_easy}} \\
+\subfloat[]{\includegraphics[width=0.9\columnwidth]{BCG_periods_ok.pdf}\label{fig:periods_ok}} \\
+\subfloat[]{\includegraphics[width=0.9\columnwidth]{BCG_periods_hard.pdf}\label{fig:periods_hard}}
+\caption{Inferred beat periods from (a) easy (b) moderate and (c) hard sections. The red line is the actual beat period and the blue is the lower limit for the transition density.}
+\label{fig:periods}
+\end{figure}
 
-Inferred heartbeat periods.
+Figure~\ref{fig:template} shows the evolution of the waveform over time for the moderate case, and the initial template used as the prior mean.
 
-Clutter section and results.
+\begin{figure}
+\centering
+\subfloat[]{\includegraphics[width=0.9\columnwidth]{template_surface_ok.png}\label{fig:template_surface}} \\
+\subfloat[]{\includegraphics[width=0.6\columnwidth]{initial_template_ok.pdf}\label{fig:template_initial}}
+\caption{Heartbeat waveform from one particle plotted over time (a) and the prior mean (b).}
+\label{fig:template}
+\end{figure}
 
+Finally, figure~\ref{fig:clutter} shows the signal and inference results when disturbances are present. The filter quickly locks on again after the event. Obviously the beat periods and timings during the disturbance are largely meaningless.
+
+\begin{figure}
+\centering
+\subfloat[]{\includegraphics[width=0.9\columnwidth]{BCG_signal_clutter.pdf}} \\
+\subfloat[]{\includegraphics[width=0.9\columnwidth]{BCG_timing_reconstruction_clutter.pdf}} \\
+\subfloat[]{\includegraphics[width=0.9\columnwidth]{BCG_periods_clutter.pdf}}
+\caption{Signal (a), timings (b) and beat periods (c) for a signal with a major disturbance caused by the subject rolling over.}
+\label{fig:clutter}
+\end{figure}
+
+
+
+\section{Current Limitations and Next Steps}
+
+\begin{itemize}
+  \item The system relies almost entirely on transition models --- there are no absolute priors or constraints. This means that if it ``loses lock'', then it really screws up. We need some system to detect this and re-initialise it. Such a system should be really simple, e.g. a check that the highest peak in the waveform mean occurs between $1/4$ and $1/2$ way through.
+  \item As with all particle filters, it's quite slow --- about 1/5 of real time using 200 particles, coded in MATLAB. I could bring this down by at least a factor of 2-5 by vectorising the inner for-loop, and writing it in C would probably make it faster-than-real-time. 200 particles appears to be plenty since the effective dimension of the particle filtered state space is very low (just the jump times, and the clutter/disturbance indicators, which are optimally proposed.)
+  \item It might be possible to reduce the number of particles required by using more informed proposals of the beat timings. I'm working on this.
+  \item The next step is to use the four sensors as separate observations instead of simply adding them together.
+  \item Eventually we want to use it for multiple people.
+\end{itemize}
 
 
 \bibliographystyle{dcu}
