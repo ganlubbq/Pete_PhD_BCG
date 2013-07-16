@@ -9,9 +9,10 @@ for pp = 1:model.np
     old_beat = old_pt.beat(pp);
     
     % Find the latest beat which has passed out of the window
-    latest = find( old_beat.time==max(old_beat.time(old_beat.time<start_time)) );
-    if ~isempty(latest)
+    fixed_time = old_beat.time(old_beat.time<start_time);
+    if ~isempty(fixed_time)
         % If there is one, then use it as the new preceeding beat
+        latest = find( old_beat.time==max(fixed_time) );
         pre_time = old_beat.time(latest);
         pre_param = old_beat.param(:,latest);
         time = old_beat.time(latest+1:end);
@@ -35,7 +36,7 @@ for pp = 1:model.np
 end
 
 % Create particle
-new_pt = part_init(model, anc, 0, new_beats);
+new_pt = part_init(model, anc, old_pt.weight, new_beats);
     
 end
 

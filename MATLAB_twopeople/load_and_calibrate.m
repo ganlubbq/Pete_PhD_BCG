@@ -34,26 +34,33 @@ for ss = 1:2
     ecg_filt(:,ss) = filtfilt(b, 1, ecg(:,ss));
 end
 
+% Remove DC offset from bcg
+bcg_filt = bsxfun(@minus, bcg_filt, mean(bcg_filt));
+
 % Downsample
 bcg_filt = bcg_filt(1:dsr:length(t_idx),:);
-ecg_filt = ecg_filt(1:dsr:length(t_idx),:);
 
 % Calibrate
 % load(calibfilename)
 
 
-% Select a little chunk
-bcg_out = bcg_filt(offset+1:offset+K,:);
-ecg_out = ecg_filt(offset+1:offset+K,:);
-
-% Remove DC offset from bcg
-bcg_out = bsxfun(@minus, bcg_out, mean(bcg_out))';
-
 % Time
-time = (0:K-1)/(fs/dsr);
+time = (0:size(bcg_filt,1)-1)/(fs/dsr);
 
 % Chop beats
-beats1(beats1(:,1)>time(end),:) = [];
-beats2(beats2(:,1)>time(end),:) = [];
+beats1(beats1(:,1)>time(offset+K),:) = [];
+beats2(beats2(:,1)>time(offset+K),:) = [];
+beats1(beats1(:,1)<time(offset),:) = [];
+beats2(beats2(:,1)<time(offset),:) = [];
+
+% Select a little chunk
+bcg_out = bcg_filt(offset+1:offset+K,:)';
+time = time(offset+1:offset+K);
+
+% Shift time by offset
+t_off = time(1);
+time = time - t_off;
+beats1(:,1) = beats1(:,1) - t_off;
+beats2(:,1) = beats2(:,1) - t_off;
 
 end

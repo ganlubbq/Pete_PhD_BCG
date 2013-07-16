@@ -9,7 +9,7 @@ model.np = 2;
 model.num_sens = 4;
 
 % Observation model
-model.y_obs_vr = 0.05^2;                         % Observation variance
+model.y_obs_vr = 0.1^2;                         % Observation variance
 
 % Template model
 model.w_prior_mn = zeros(model.dw,1);
@@ -21,8 +21,8 @@ model.p_prior_scale = 0.02;
 model.p_trans_scale = 1E-4;
 
 % Beat period model
-model.tau_trans_shape = 5;
-model.tau_trans_scale = 0.1;
+model.tau_trans_shape = 1.5;
+model.tau_trans_scale = 0.1/1.5;
 
 
 % % Basics

@@ -10,18 +10,23 @@ if isempty(beat)
     time = []; param = zeros(model.dp,0);
     
     % Loop until we're through the window
-    while latest_time + period < end_time
+    while true
         
         % Rejection sample a beat time
-        while latest_time+period < start_time
-            [ period ] = heartbeat_periodtrans( model, latest_param, [] );
-        end
+        lower_lim = gamcdf(start_time-latest_time-latest_param, model.tau_trans_shape, model.tau_trans_scale);
+        u = unifrnd(lower_lim, 1);
+        period = latest_param + gaminv(u, model.tau_trans_shape, model.tau_trans_scale);
+        
         latest_time = latest_time + period;
         latest_param = heartbeat_paramtrans(model, latest_param, []);
         
         % Store it
-        time = [time, latest_time];
-        param = [param, latest_param];
+        if latest_time < end_time
+            time = [time, latest_time];
+            param = [param, latest_param];
+        else
+            break;
+        end
         
     end
     
