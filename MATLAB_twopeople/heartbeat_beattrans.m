@@ -24,6 +24,10 @@ if isempty(beat)
         if latest_time < end_time
             time = [time, latest_time];
             param = [param, latest_param];
+
+            %%% FUDGE TO STOP MORE THAN 1 BEAT PER WINDOW!!! %%%
+            break;
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         else
             break;
         end

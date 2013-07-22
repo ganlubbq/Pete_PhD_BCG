@@ -6,15 +6,11 @@ function [mu, Sigma, H] = heartbeat_separation( display, algo, model, time, obse
 
 % Other matrixes
 Pw = model.w_prior_vr;
-if model.np == 1
-    Pw = blkdiag(Pw, Pw, Pw, Pw);
-elseif model.np == 2
-    Pw = blkdiag(Pw, Pw, Pw, Pw, Pw, Pw, Pw, Pw);
-end
+mw = model.w_prior_mn;
 
 % Posterior
 Sigma = inv( inv(Pw) + H'*H/model.y_obs_vr );
-mu = Sigma*H'*Y/model.y_obs_vr;
+mu = Sigma*(H'*Y/model.y_obs_vr + Pw\mw);
 
 % w_av{1} = reshape(mu(1:4*model.dw), model.dw, 4)';
 % w_av{2} = reshape(mu(4*model.dw+1:end), model.dw, 4)';

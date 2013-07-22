@@ -9,14 +9,22 @@ model.np = 2;
 model.num_sens = 4;
 
 % Observation model
-model.y_obs_vr = 0.1^2;                         % Observation variance
+model.y_obs_vr = 0.05^2;                         % Observation variance
 
 % Template model
-model.w_prior_mn = zeros(model.dw,1);
-model.w_prior_vr = 1^2*eye(model.dw);
+mw = zeros(model.dw,1);% model.w_prior_mn(10) = 1; model.w_prior_mn(15) = -1;
+Pw = 0.2^2 * diag(0.5*(1-cos(2*pi*(1:model.dw)/(model.dw+1))).^2); %0.2^2*eye(model.dw);
+
+if model.np == 1
+    model.w_prior_vr = blkdiag(Pw, Pw, Pw, Pw);
+    model.w_prior_mn = [mw; mw; mw; mw];
+elseif model.np == 2
+    model.w_prior_vr = blkdiag(Pw, Pw, Pw, Pw, Pw, Pw, Pw, Pw);
+    model.w_prior_mn = [mw; mw; mw; mw; mw; mw; mw; mw];
+end
 
 % Beat offset model
-model.p_prior_shape = 50;
+model.p_prior_shape = 40;
 model.p_prior_scale = 0.02;
 model.p_trans_scale = 1E-4;
 

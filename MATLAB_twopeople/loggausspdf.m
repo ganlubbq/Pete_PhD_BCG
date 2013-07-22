@@ -13,7 +13,7 @@ log2pi = 1.83787706640935;
 [d,n] = size(x);
 
 x = x - m;
-ld = -0.5 * ( sum(x.*(S\x)) + d*log2pi + log(det(S)));
+ld = -0.5 * ( sum(x.*(S\x)) + d*log2pi +  2*sum(log(diag(chol(S)))) );  %sum(log(eig(S))) %log(det(S))
 
 end
 

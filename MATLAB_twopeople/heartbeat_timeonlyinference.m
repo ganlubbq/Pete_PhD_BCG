@@ -1,4 +1,4 @@
-function [ ps ] = heartbeat_inference( display, algo, model, time, observ )
+function [ ps ] = heartbeat_timeonlyinference( display, algo, model, time, observ, wf_mn, wf_vr )
 %HEARTBEAT_INFERENCE Separate BCG heartbeat signals. Joint estimation of
 %beat timings and waveforms, using a variable rate particle filter on a
 %rolling window.
@@ -20,10 +20,6 @@ last_pf = pf_init(model, Nf);
 
 % Particle loop
 for ii = 1:Nf
-    
-%     % Sample initial values for the parameters and changepoints
-%     last_pf(ii).beat = heartbeat_initialise( algo, model, time(1:model.Lstart), observ(:,1:model.Lstart) );
-    
     % People loop
     for pp = 1:model.np
         
@@ -31,28 +27,28 @@ for ii = 1:Nf
         last_pf(ii).beat(pp) = heartbeat_beatprior(model, 0);
         ps(ii).beat(pp).pre_time = last_pf(ii).beat(pp).pre_time;
         ps(ii).beat(pp).pre_param = last_pf(ii).beat(pp).pre_param;
-
+        
     end
 end
 
 % Particle filter loop
 for mm = 1:M
     
-%     if mm == 3
-%         Nf = Nf/10;
+%     if mm == 4
+%         Nf = Nf/500;
 %     end
     
     % Time, step size and window length
     if mm == 1, kk = 0; else kk = kk + S; end
-    L = min(algo.L, K-kk);
-    S = min(algo.S, K-kk);
+    L = min(L, K-kk);
+    S = min(S, K-kk);
     start_time = time(kk+1);
     end_time = time(kk+L);
     
-%     if mm < 4
-%         L = 2*L;
-%     end
-        
+    if mm == 1
+        L = L/2;
+    end
+    
     if display.text
         % Text output
         fprintf(1, 'Particle filter iteration %u of %u:\n', mm, M);
@@ -81,40 +77,33 @@ for mm = 1:M
         % Initialise particle
         pt = pf_forwardparticle(model, anc, last_pf(anc), start_time, end_time);
         
-        % Propose new parameters for the preceeding heartbeats from a MH kernel
-        for pp = 1:model.np
-            
-            if pt.beat(pp).pre_time < 0
-                
-                beat = pt.beat(pp);
-                ante_param = beat.ante_param;
-                
-                % Sample a new value for pre_param
-                new_pre_param = heartbeat_paramtrans(model, ante_param, []);
-                new_beat = beat;
-                new_beat.pre_param = new_pre_param;
-                
-                % Probabilities
-                new_pre_param_prob = heartbeat_preparamchange(model, new_beat, start_time);
-                old_pre_param_prob = heartbeat_preparamchange(model, beat,     start_time);
-                
-                % Accept?
-                if log(rand) < new_pre_param_prob-old_pre_param_prob
-                    pt.beat(pp) = new_beat;
-                    
-                    % Update smoothed particle too
-                    idx = find( ps(ii).beat(pp).time==pt.beat(pp).pre_time );
-                    if ~isempty(idx)
-                        ps(ii).beat(pp).param(:,idx) = new_pre_param;
-                    end
-                end
-                
-            end
-            
-        end
-        
-        % Find parameters of Gaussian posterior waveform distribution
-        [wf_mn, wf_vr] = heartbeat_separation( display, algo, model, time(1:kk), observ(:,1:kk), ps(ii).beat );
+%         % Propose new parameters for the preceeding heartbeats from a MH kernel
+%         for pp = 1:model.np
+%             
+%             beat = pt.beat(pp);
+%             ante_param = beat.ante_param;
+%             
+%             % Sample a new value for pre_param
+%             new_pre_param = heartbeat_paramtrans(model, ante_param, []);
+%             new_beat = beat;
+%             new_beat.pre_param = new_pre_param;
+%             
+%             % Probabilities
+%             new_pre_param_prob = heartbeat_preparamchange(model, new_beat, start_time);
+%             old_pre_param_prob = heartbeat_preparamchange(model, beat,     start_time);
+% 
+%             % Accept?
+%             if log(rand) < new_pre_param_prob-old_pre_param_prob
+%                 pt.beat(pp) = new_beat;
+%                 
+%                 % Update smoothed particle too
+%                 idx = find( ps(ii).beat(pp).time==pt.beat(pp).pre_time );
+%                 if ~isempty(idx)
+%                     ps(ii).beat(pp).param(:,idx) = new_pre_param;
+%                 end
+%             end
+%             
+%         end
         
         % Old probabilities
         if mm > 1
@@ -135,7 +124,7 @@ for mm = 1:M
             
         end
         
-        if 0;%(mm>2)&&(~isempty(beat.time))%
+        if 0;%~isempty(beat.time)
             % Optimise and re-propose
             [beat, ppsl_prob] = heartbeat_optimalgaussianproposal(algo, model, beat, time(kk+1:kk+L), observ(:,kk+1:kk+L), wf_mn, wf_vr);
             [~, trans_prob] = heartbeat_beattrans(model, beat.pre_time, beat.pre_param, beat.ante_param, start_time, end_time, beat);
@@ -317,38 +306,37 @@ function [ beat, ppsl_prob ] = heartbeat_optimalgaussianproposal(algo, model, be
 tau0 = beat.time;
 
 % Maximise OID
-h_of = @(tau) log_oid_with_grad(algo, model, time, observ, beat, wf_mn, wf_vr, tau);
+% h_of = @(tau) log_oid_with_grad(algo, model, time, observ, beat, wf_mn, wf_vr, tau);
 % options = optimset('GradObj','on', 'Display','notify-detailed', 'TolX',0.001);
-options = optimset('Display','off', 'TolX',0.01);
-warning('off','optim:fminunc:SwitchingMethod');
-tau_opt = fminunc(h_of, tau0, options);
+% % options = optimset('Display','notify-detailed', 'TolX',0.01);
+% opt_tau = fminunc(h_of, tau_start, options);
 
-% % Which way shall we look?
-% [func0, grad0] = log_oid_with_grad(algo, model, time, observ, beat, wf_mn, wf_vr, tau0);
-% dir = sign(grad0);
-% 
-% % A couple of points
-% Tpp = 0.25;
-% tau1 = tau0+0.25*dir*Tpp;
-% tau2 = tau0+0.5*dir*Tpp;
-% [func1] = log_oid_with_grad(algo, model, time, observ, beat, wf_mn, wf_vr, tau1);
-% [func2] = log_oid_with_grad(algo, model, time, observ, beat, wf_mn, wf_vr, tau2);
-% 
-% % Fit a parabola
-% cub_fit = [tau0^2 tau0^2 tau0 1; tau1^2 tau1^2 tau1 1; tau2^2 tau2^2 tau2 1; 3*tau0^2 2*tau0 1 0]\[func0; func1; func2; grad0];
-% tau_opt(1) = (-2*cub_fit(2)+sqrt(4*cub_fit(2)^2-12*cub_fit(1)*cub_fit(3)))/(6*cub_fit(1));
-% tau_opt(2) = (-2*cub_fit(2)-sqrt(4*cub_fit(2)^2-12*cub_fit(1)*cub_fit(3)))/(6*cub_fit(1));
-% 
-% % Find the best peak
-% tau_set = [tau0, tau1, tau2];
-% func_set = [func0, func1, func2];
-% tau_opt( isnan(tau_opt)|~isreal(tau_opt)|(tau_opt<min(tau_set))|(tau_opt>max(tau_set)) ) = [];
-% if isempty(tau_opt)
-%     tau_opt = tau_set( func_set==max(func_set) );
-% end
-% if length(tau_opt)>1
-%     tau_opt = tau_opt( abs(tau_opt-tau0)==min(abs(tau_opt-tau0)) );
-% end
+% Which way shall we look?
+[func0, grad0] = log_oid_with_grad(algo, model, time, observ, beat, wf_mn, wf_vr, tau0);
+dir = sign(grad0);
+
+% A couple of points
+Tpp = 0.25;
+tau1 = tau0+0.25*dir*Tpp;
+tau2 = tau0+0.5*dir*Tpp;
+[func1] = log_oid_with_grad(algo, model, time, observ, beat, wf_mn, wf_vr, tau1);
+[func2] = log_oid_with_grad(algo, model, time, observ, beat, wf_mn, wf_vr, tau2);
+
+% Fit a parabola
+cub_fit = [tau0^2 tau0^2 tau0 1; tau1^2 tau1^2 tau1 1; tau2^2 tau2^2 tau2 1; 3*tau0^2 2*tau0 1 0]\[func0; func1; func2; grad0];
+tau_opt(1) = (-2*cub_fit(2)+sqrt(4*cub_fit(2)^2-12*cub_fit(1)*cub_fit(3)))/(6*cub_fit(1));
+tau_opt(2) = (-2*cub_fit(2)-sqrt(4*cub_fit(2)^2-12*cub_fit(1)*cub_fit(3)))/(6*cub_fit(1));
+
+% Find the best peak
+tau_set = [tau0, tau1, tau2];
+func_set = [func0, func1, func2];
+tau_opt( isnan(tau_opt)|~isreal(tau_opt)|(tau_opt<min(tau_set))|(tau_opt>max(tau_set)) ) = [];
+if isempty(tau_opt)
+    tau_opt = tau_set( func_set==max(func_set) );
+end
+if length(tau_opt)>1
+    tau_opt = tau_opt( abs(tau_opt-tau0)==min(abs(tau_opt-tau0)) );
+end
 
 % Propose a new time
 ppsl_vr = 0.002^2;

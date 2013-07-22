@@ -2,10 +2,14 @@ function [ interp_vector ] = heartbeat_interpolation( algo, model, t, cp_time )
 %HEARTBEAT_INTERPOLATION Construct a matrix of interpolation factors which
 %allow a heartbeat waveform to be interpolated to any time.
 
+if numel(cp_time)==1
+    cp_time = cp_time*ones(size(t));
+end
+
 dt = t - cp_time;
 
 dt = dt(:);
-n = 0:model.dw-1;
+n = 1:model.dw;
 grid = dt(:,ones(1,model.dw))*model.fs - n(ones(length(t),1),:);
 
 interp_vector = sinc(grid);
