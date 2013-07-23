@@ -18,32 +18,47 @@ ps = ps_init(model, Nf);
 % Initialise a blank particle filter structure
 last_pf = pf_init(model, Nf);
 
+% fprintf(1, 'Initialisation Loop: ');
 % Particle loop
 for ii = 1:Nf
     
+%     fprintf(1, '%u ', ii);
+%     
 %     % Sample initial values for the parameters and changepoints
-%     last_pf(ii).beat = heartbeat_initialise( algo, model, time(1:model.Lstart), observ(:,1:model.Lstart) );
+%     start_time = 0; end_time = algo.Lstart/model.fs;
+%     last_pf(ii).beat = heartbeat_initialise( algo, model, time(1:algo.Lstart), observ(:,1:algo.Lstart), start_time, end_time );
     
     % People loop
     for pp = 1:model.np
         
         % Sample initial values for the parameters and changepoints from the prior
-        last_pf(ii).beat(pp) = heartbeat_beatprior(model, 0);
+        start_time = 0; end_time = algo.L/model.fs;
+        beat(pp) = heartbeat_beatprior(model);
+        last_pf(ii).beat(pp) = heartbeat_beattrans(model, beat(pp).pre_time, beat(pp).pre_param, [], start_time, end_time, []);
         ps(ii).beat(pp).pre_time = last_pf(ii).beat(pp).pre_time;
         ps(ii).beat(pp).pre_param = last_pf(ii).beat(pp).pre_param;
 
     end
+    
+    % Probabilities
+    [H, Y] = heartbeat_obsmat(algo, model, time(1:L), observ(:,1:L), ps(ii).beat);
+    lhood = loggausspdf(Y, H*model.w_prior_mn, H*model.w_prior_vr*H'+model.y_obs_vr*eye(length(Y)));
+    
+    % Update weight
+    last_pf(ii).weight = lhood;
+    
 end
+% fprintf(1, ' COMPLETE.\n');
 
 % Particle filter loop
-for mm = 1:M
+for mm = 1:M-1
     
 %     if mm == 3
 %         Nf = Nf/10;
 %     end
     
     % Time, step size and window length
-    if mm == 1, kk = 0; else kk = kk + S; end
+    if mm == 1, kk = algo.S; else kk = kk + S; end
     L = min(algo.L, K-kk);
     S = min(algo.S, K-kk);
     start_time = time(kk+1);
@@ -64,7 +79,7 @@ for mm = 1:M
     pf = pf_init(model, Nf);
     
     % Particle selection
-    if mm > 2
+    if mm > 0
         auxiliary_weights = [last_pf.weight];
     else
         auxiliary_weights = zeros(1,Nf);
@@ -117,7 +132,7 @@ for mm = 1:M
         [wf_mn, wf_vr] = heartbeat_separation( display, algo, model, time(1:kk), observ(:,1:kk), ps(ii).beat );
         
         % Old probabilities
-        if mm > 1
+        if mm > 0
             [H, Y] = heartbeat_obsmat(algo, model, time(kk+1:kk+L-S), observ(:,kk+1:kk+L-S), ps(ii).beat);
             old_lhood = loggausspdf(Y, H*wf_mn, H*wf_vr*H'+model.y_obs_vr*eye(length(Y)));
         else
@@ -131,7 +146,7 @@ for mm = 1:M
             pre_time = pt.beat(pp).pre_time;
             pre_param = pt.beat(pp).pre_param;
             ante_param = pt.beat(pp).ante_param;
-            [beat(pp), trans_prob] = heartbeat_beattrans(model, pre_time, pre_param, ante_param, start_time, end_time, []);
+            [beat(pp), trans_prob(pp)] = heartbeat_beattrans(model, pre_time, pre_param, ante_param, start_time, end_time, []);
             
         end
         
@@ -168,7 +183,7 @@ for mm = 1:M
         new_lhood = loggausspdf(Y, H*wf_mn, H*wf_vr*H'+model.y_obs_vr*eye(length(Y)));
         
         % Update weight
-        pt.weight = pt.weight - selected_weights(ii) + new_lhood - old_lhood + trans_prob-ppsl_prob;
+        pt.weight = pt.weight - selected_weights(ii) + new_lhood - old_lhood + sum(trans_prob)-sum(ppsl_prob);
         if isinf(pt.weight)||isnan(pt.weight)
             pt.weight = -inf;
         end

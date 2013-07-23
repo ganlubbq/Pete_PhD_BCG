@@ -1,4 +1,4 @@
-function [ beat, prob ] = heartbeat_beatprior( model, end_time )
+function [ beat, period, prob ] = heartbeat_beatprior( model )
 %HEARTBEAT_BEATPRIOR Sample a preceeding beat time and parameter.
 
 % Sample parameter from prior
@@ -8,10 +8,10 @@ function [ beat, prob ] = heartbeat_beatprior( model, end_time )
 [ period, period_prob ] = heartbeat_periodtrans(model, param, []);
 
 % Sample beat time
-tau0 = unifrnd(end_time-period, end_time);
+tau0 = unifrnd(0-period, 0);
 time_prob = log(1/period);
 
-% Build a beat
+% Make a beat
 beat = beat_init(model, tau0, param, [], [], []);
 
 % Combine densities

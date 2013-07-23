@@ -62,7 +62,7 @@ end
 [time, observ, beats1, beats2] = load_and_calibrate(model.K, data_file, 'calibration.mat', t_start, t_start+t_length, offset);
 
 %% Separate tasks
-if 1
+if 0
     ecg_beat(1) = beat_init(model, -Inf, 0, [], beats1(:,1)', zeros(size(beats1(:,1)')) );
     if model.np > 1
         ecg_beat(2) = beat_init(model, -Inf, 0, [], beats2(:,1)', zeros(size(beats2(:,1)')) );

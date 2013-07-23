@@ -5,7 +5,7 @@ model.K = 200;
 model.fs = 30;
 model.dw = 30;
 model.dp = 1;
-model.np = 2;
+model.np = 1;
 model.num_sens = 4;
 
 % Observation model
