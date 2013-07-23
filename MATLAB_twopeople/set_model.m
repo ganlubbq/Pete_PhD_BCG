@@ -1,11 +1,11 @@
 % Set model parameters
 
 % Basics
-model.K = 200;
+model.K = 500;
 model.fs = 30;
 model.dw = 30;
 model.dp = 1;
-model.np = 1;
+model.np = 2;
 model.num_sens = 4;
 
 % Observation model
@@ -26,7 +26,7 @@ end
 % Beat offset model
 model.p_prior_shape = 40;
 model.p_prior_scale = 0.02;
-model.p_trans_scale = 1E-4;
+model.p_trans_scale = 1E-3;
 
 % Beat period model
 model.tau_trans_shape = 1.5;
