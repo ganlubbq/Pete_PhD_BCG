@@ -21,14 +21,14 @@ for xx = 1:length(tau_rng)
     end
 end
 
-figure, surf(tau_rng, tau_rng, lhood_map); shading interp;
+figure, surf(tau1_offset+tau_rng, tau2_offset+tau_rng, lhood_map); shading interp;
 
 %% One heartbeat
 test_beat = beat;
-test_beat.pre_time = -Inf;
+% test_beat.pre_time = -Inf;
 tau1_offset = 0;beat.pre_time + beat(1).pre_param;
 
-tau_rng = -3:0.001:3;
+tau_rng = -1.5:0.01:3;
 lhood_map = zeros(1, length(tau_rng));
 
 for xx = 1:length(tau_rng)
@@ -36,19 +36,19 @@ for xx = 1:length(tau_rng)
     
     test_beat.time = tau1;
     
-    [H, Y, dH] = heartbeat_obsmat(algo, model, time(kk+1:kk+L), observ(:,kk+1:kk+L), test_beat);
+    [H, Y] = heartbeat_obsmat(algo, model, time(kk+1:kk+L), observ(:,kk+1:kk+L), test_beat);
     lhood_map(xx) = loggausspdf(Y, H*wf_mn, H*wf_vr*H'+model.y_obs_vr*eye(length(Y)));
     prior_map(xx) = log(gampdf(tau1-tau1_offset, model.tau_trans_shape, model.tau_trans_scale));
     
     R = model.y_obs_vr*eye(length(Y)) + H*wf_vr*H';
     Sigma = inv( inv(wf_vr)+H'*(R\H) );
     mu = Sigma*( H'*(R\Y) + wf_vr\wf_mn );
-    lhood_deriv_map(xx) = -( mu'*dH'*(R\(Y-H*mu)) - trace( H'*(R\dH)*Sigma ) );
+%     lhood_deriv_map(xx) = -( mu'*dH'*(R\(Y-H*mu)) - trace( H'*(R\dH)*Sigma ) );
     
 end
 
-figure, plot(tau_rng, lhood_map);
-figure, plot(tau_rng, lhood_deriv_map);
+figure, hold on, plot(tau_rng, lhood_map); plot(tau_rng, prior_map, 'r');
+% figure, plot(tau_rng, lhood_deriv_map);
 
 %% Variance
 

@@ -24,12 +24,12 @@ for ii = 1:Nf
     % Store
     ps(ii).beat = last_pf(ii).beat;
     
-    % Probabilities
-    [H, Y] = heartbeat_obsmat(algo, model, time(1:algo.Lstart), observ(:,1:algo.Lstart), ps(ii).beat);
-    lhood = loggausspdf(Y, H*model.w_prior_mn, H*model.w_prior_vr*H'+model.y_obs_vr*eye(length(Y)));
+%     % Probabilities
+%     [H, Y] = heartbeat_obsmat(algo, model, time(1:algo.Lstart), observ(:,1:algo.Lstart), ps(ii).beat);
+%     lhood = loggausspdf(Y, H*model.w_prior_mn, H*model.w_prior_vr*H'+model.y_obs_vr*eye(length(Y)));
     
     % Update weight
-    last_pf(ii).weight = lhood;
+    last_pf(ii).weight = 0;%lhood;%
     
 end
 fprintf(1, ' COMPLETE.\n');
@@ -92,7 +92,7 @@ while 1
         [wf_mn, wf_vr] = heartbeat_separation( display, algo, model, time(1:kk), observ(:,1:kk), ps(ii).beat );
         
         % Old probabilities
-        if mm > 0
+        if mm > 1
             [H, Y] = heartbeat_obsmat(algo, model, time(kk+1:kk+last_L-S), observ(:,kk+1:kk+last_L-S), ps(ii).beat);
             old_lhood = loggausspdf(Y, H*wf_mn, H*wf_vr*H'+model.y_obs_vr*eye(length(Y)));
         else
@@ -115,19 +115,39 @@ while 1
             ppsl_survive_prob = log(1 - gamcdf( beat_period_offset, model.tau_trans_shape, model.tau_trans_scale ));
             if log(rand) < ppsl_survive_prob-survive_prob
                 pre_param = ppsl_pre_param;
+                
+                % Update smoothed particle too
+                idx = find( ps(ii).beat(pp).time==pt.beat(pp).pre_time );
+                if ~isempty(idx)
+                    ps(ii).beat(pp).param(:,idx) = ppsl_pre_param;
+                end
             end
             
-            [beat(pp), trans_prob(pp)] = heartbeat_beattrans(model, pre_time, pre_param, ante_param, start_time, end_time, []);
+            [beat(pp), init_trans_prob(pp)] = heartbeat_beattrans(model, pre_time, pre_param, ante_param, start_time, end_time, []);
             
         end
         
-        if 0;%(mm>2)&&(~isempty(beat.time))%
+        if 1%model.np == 1
             % Optimise and re-propose
             [beat, ppsl_prob] = heartbeat_optimalgaussianproposal(algo, model, beat, time(kk+1:kk+L), observ(:,kk+1:kk+L), wf_mn, wf_vr);
-            [~, trans_prob] = heartbeat_beattrans(model, beat.pre_time, beat.pre_param, beat.ante_param, start_time, end_time, beat);
+            for pp = 1:model.np
+                [~, trans_prob(pp)] = heartbeat_beattrans(model, beat(pp).pre_time, beat(pp).pre_param, beat(pp).ante_param, start_time, end_time, beat(pp));
+            end
         else
-            ppsl_prob = trans_prob;
+            trans_prob = 0;
+            ppsl_prob = 0;
         end
+
+%         % Composite proposal update
+%         if model.np == 1
+%             if ~isempty(beat.time)&&(mm>1)
+%                 [beat, ppsl_prob_inc] = heartbeat_compositeproposal(algo, model, time(kk+1:kk+L), observ(:,kk+1:kk+L), beat, wf_mn, wf_vr);
+%                 [~, trans_prob(pp)] = heartbeat_beattrans(model, beat(pp).pre_time, beat(pp).pre_param, beat(pp).ante_param, start_time, end_time, beat);
+%             end
+%         else
+%             trans_prob = init_trans_prob;
+%             ppsl_prob_inc = 0;
+%         end
         
         % Store it
         pt.beat = beat;
@@ -145,7 +165,10 @@ while 1
         new_lhood = loggausspdf(Y, H*wf_mn, H*wf_vr*H'+model.y_obs_vr*eye(length(Y)));
         
         % Update weight
-        pt.weight = pt.weight - selected_weights(ii) + new_lhood - old_lhood;
+        pt.weight = pt.weight - selected_weights(ii) ...
+                    + new_lhood - old_lhood ...
+                    + sum(trans_prob) - sum(init_trans_prob) ...
+                    - ppsl_prob;
         if isinf(pt.weight)||isnan(pt.weight)
             pt.weight = -inf;
         end
@@ -184,71 +207,132 @@ end
 
 function [ beat, ppsl_prob ] = heartbeat_optimalgaussianproposal(algo, model, beat, time, observ, wf_mn, wf_vr)
 
-%%% JUST FOR ONE HEARTBEAT AT THE MOMENT %%%
+% Create a beat structure with just the first beat of each person
+original_beat = beat;
+for pp = 1:model.np
+    beat(pp).time(2:end) = [];
+    beat(pp).param(2:end) = [];
+end
 
-tau0 = beat.time;
+if (model.np==1) && ~isempty(beat.time)
+    p_idx = 1;
+    b_idx = 1;
+elseif(model.np==1) && isempty(beat.time)
+    p_idx = [];
+    b_idx = [];
+elseif isempty(beat(1).time) && ~isempty(beat(2).time)
+    p_idx = 2;
+    b_idx = 1;
+elseif ~isempty(beat(1).time) && isempty(beat(2).time)
+    p_idx = 1;
+    b_idx = 1;
+else
+    p_idx = [1 2];
+    b_idx = [1 1];
+end
 
-% Maximise OID
-h_of = @(tau) log_oid_with_grad(algo, model, time, observ, beat, wf_mn, wf_vr, tau);
-% options = optimset('GradObj','on', 'Display','notify-detailed', 'TolX',0.001);
-options = optimset('Display','off', 'TolX',0.01);
-warning('off','optim:fminunc:SwitchingMethod');
-tau_opt = fminunc(h_of, tau0, options);
+% [tau_opt, hess] = optimise_beat_times(algo, model, beat, p_idx, b_idx, time, observ, wf_mn, wf_vr);
+[tau_opt] = optimise_beat_times(algo, model, beat, p_idx, b_idx, time, observ, wf_mn, wf_vr);
 
-% % Which way shall we look?
-% [func0, grad0] = log_oid_with_grad(algo, model, time, observ, beat, wf_mn, wf_vr, tau0);
-% dir = sign(grad0);
-% 
-% % A couple of points
-% Tpp = 0.25;
-% tau1 = tau0+0.25*dir*Tpp;
-% tau2 = tau0+0.5*dir*Tpp;
-% [func1] = log_oid_with_grad(algo, model, time, observ, beat, wf_mn, wf_vr, tau1);
-% [func2] = log_oid_with_grad(algo, model, time, observ, beat, wf_mn, wf_vr, tau2);
-% 
-% % Fit a parabola
-% cub_fit = [tau0^2 tau0^2 tau0 1; tau1^2 tau1^2 tau1 1; tau2^2 tau2^2 tau2 1; 3*tau0^2 2*tau0 1 0]\[func0; func1; func2; grad0];
-% tau_opt(1) = (-2*cub_fit(2)+sqrt(4*cub_fit(2)^2-12*cub_fit(1)*cub_fit(3)))/(6*cub_fit(1));
-% tau_opt(2) = (-2*cub_fit(2)-sqrt(4*cub_fit(2)^2-12*cub_fit(1)*cub_fit(3)))/(6*cub_fit(1));
-% 
-% % Find the best peak
-% tau_set = [tau0, tau1, tau2];
-% func_set = [func0, func1, func2];
-% tau_opt( isnan(tau_opt)|~isreal(tau_opt)|(tau_opt<min(tau_set))|(tau_opt>max(tau_set)) ) = [];
-% if isempty(tau_opt)
-%     tau_opt = tau_set( func_set==max(func_set) );
-% end
-% if length(tau_opt)>1
-%     tau_opt = tau_opt( abs(tau_opt-tau0)==min(abs(tau_opt-tau0)) );
-% end
+if ~isempty(p_idx)
+%     if isposdef(-hess)
+%         ppsl_vr = -inv(hess);
+%     else
+        ppsl_vr = 0.001^2 * eye(length(p_idx));         % Should be using the Hessian, but a fixed value seems to do fine
+%     end
+    tau = mvnrnd(tau_opt', ppsl_vr)';
+    ppsl_prob = loggausspdf(tau, tau_opt, ppsl_vr);
+else
+    tau = [];
+    ppsl_prob = 0;
+end
 
-% Propose a new time
-ppsl_vr = 0.002^2;
-tau = mvnrnd(tau_opt, ppsl_vr);
-time_ppsl_prob = loggausspdf(tau, tau_opt, ppsl_vr);
+for pp = 1:length(tau)
+    beat(p_idx(pp)).time(b_idx(pp)) = tau(pp);
+end
 
-% Propose a new parameter
-[param, param_ppsl_prob] = heartbeat_paramtrans(model, beat.pre_param, []);
-
-% Store
-beat.time = tau;
-beat.param = param;
-
-ppsl_prob = time_ppsl_prob + param_ppsl_prob;
+% Put the remaining beats back in, optimise marginally and proprose a time
+for pp = 1:model.np
+    beat(pp).time = [beat(pp).time original_beat(pp).time(2:end)];
+    beat(pp).param = [beat(pp).param original_beat(pp).param(2:end)];
+end
 
 end
 
-function [func, grad, hess] = log_oid_with_grad(algo, model, time, observ, beat, wf_mn, wf_vr, tau)
+function [tau, hess] = optimise_beat_times(algo, model, beat, p_idx, b_idx, time, observ, wf_mn, wf_vr)
 
-beat.time = tau;
-[H, Y, dH] = heartbeat_obsmat(algo, model, time, observ, beat);
+% p_idx is the index(es) of the person for whom a heartbeat needs optimising
+% b_idx is the index(es) of the heartbeat
+% They should have the same length
+
+if isempty(p_idx)
+    % No search required
+    
+    tau = [];
+    hess = [];
+
+elseif length(p_idx) == 1
+    % Line search
+    
+    tau0 = beat(p_idx).time(b_idx);
+    
+    % Minimise negative log-likelihood
+    h_of = @(tau) log_lhood(algo, model, time, observ, beat, p_idx, b_idx, wf_mn, wf_vr, tau);
+    LB = tau0-0.15;
+    UB = tau0+0.15;
+    tau = fminbnd(h_of, LB, UB);
+    
+    % Approximate Hessian?
+    if nargout > 1
+        dt = 0.0001;
+        [~, grad0] = log_lhood(algo, model, time, observ, beat, p_idx, b_idx, wf_mn, wf_vr, tau);
+        [~, grad1] = log_lhood(algo, model, time, observ, beat, p_idx, b_idx, wf_mn, wf_vr, tau+dt);
+        hess = (grad1-grad0)/dt;
+    else
+        hess = [];
+    end
+    
+else
+    % 2D search
+
+    for bb = 1:length(p_idx)
+        tau0(bb) = beat(p_idx(bb)).time(b_idx(bb));
+    end
+    tau0 = tau0';
+    
+    % Minimise negative log-likelihood
+    h_of = @(tau) log_lhood(algo, model, time, observ, beat, p_idx, b_idx, wf_mn, wf_vr, tau);
+    options = optimset('GradObj','on', 'Display','notify-detailed', 'TolX',0.001);
+    LB = tau0-0.15;
+    UB = tau0+0.15;
+    tau = fmincon(h_of, tau0, [], [], [], [], LB, UB, [], options);
+    
+    % Hessian?
+    hess = [];
+    
+end
+
+end
+
+
+
+function [func, grad, hess] = log_lhood(algo, model, time, observ, beat, p_idx, b_idx, wf_mn, wf_vr, tau)
+
+for bb = 1:length(p_idx)
+    beat(p_idx(bb)).time(b_idx(bb)) = tau(bb);
+end
+
+[H, Y] = heartbeat_obsmat(algo, model, time, observ, beat);
 R = model.y_obs_vr*eye(length(Y)) + H*wf_vr*H';
 
 func = -loggausspdf(Y, H*wf_mn, R);
 if nargout > 1
-    Sigma = inv( inv(wf_vr)+H'*(R\H) );
-    mu = Sigma*( H'*(R\Y) + wf_vr\wf_mn );
-    grad = -( mu'*dH'*(R\(Y-H*mu)) - trace( H'*(R\dH)*Sigma ) );
+    for bb = 1:length(p_idx)
+        dH = heartbeat_obsmatderiv(algo, model, time, beat, p_idx(bb), b_idx(bb));
+        invSigma = inv(wf_vr)+H'*(R\H);
+        mu = invSigma\( H'*(R\Y) + wf_vr\wf_mn );
+        grad(bb) = -( mu'*dH'*(R\(Y-H*mu)) - trace( H'*(R\dH)/invSigma ) );
+    end
 end
 if nargout > 2
     hess = 0;
@@ -256,5 +340,117 @@ end
 
 end
 
-
+% function [beat, ppsl_prob] = heartbeat_compositeproposal(algo, model, time, observ, beat, wf_mn, wf_vr)
+% 
+% %%% THIS WILL ONLY WORK IF THERE'S ONLY 1 BEAT IN THE WINDOW %%%
+% 
+% dl_start = 1E-5;
+% dl_min = 1E-8;
+% dl_max = 0.5;
+% err_thresh = 0.01;
+% dl_sf = 0.8;
+% dl_pow = 0.7;
+% 
+% tau_shift = beat.pre_time + beat.pre_param;
+% 
+% % Initialise loop variables
+% ppsl_prob = 0;
+% dl = dl_start;
+% lam = 0;
+% 
+% lam_evo = 0;
+% tau_evo = beat.time;
+% 
+% % Loop
+% ll_count = 0;
+% while lam < 1
+%     
+%     if ll_count > 50
+%         ppsl_prob = 1E10;
+%         break;
+%     end
+%     
+%     % Pseudo-time and step-size
+%     lam0 = lam;
+%     lam1 = lam + dl;
+%     if lam1 > 1
+%         lam1 = 1;
+%     end
+%     
+%     % Starting point
+%     tau0 = beat.time;
+%     
+%     % Interpolation
+%     [intvec, Y, d_intvec] = heartbeat_obsmat(algo, model, time, observ, beat);
+% 
+%     % Linearise observation model
+%     R = model.y_obs_vr*eye(length(Y)) + intvec*wf_vr*intvec';
+%     Yhat = Y - intvec*wf_mn + d_intvec*wf_mn*tau0;
+%     H = d_intvec*wf_mn;
+%     
+%     % Linearise prior
+% %     grad_prior = (model.tau_trans_shape-1)/(tau0-tau_shift) - 1/model.tau_trans_scale;
+% %     hess_prior = -(model.tau_trans_shape-1)/((tau0-tau_shift)^2);
+% %     P = -inv(hess_prior);
+% %     m = tau0 + P*grad_prior;
+%     P = model.tau_trans_shape*model.tau_trans_scale^2;
+%     m = model.tau_trans_shape*model.tau_trans_scale+tau_shift;
+%     
+%     % Analytical flow
+%     [ tau, prob_ratio, drift] = linear_flow_move( lam1, lam0, tau0, m, P, Yhat, H, R);
+%     
+%     % Error estimate
+%     beat_new = beat; beat_new.time = tau;
+%     [interp_new, Y_new, d_interp_new] = heartbeat_obsmat(algo, model, time, observ, beat_new);
+%     R_new = model.y_obs_vr*eye(length(Y)) + interp_new*wf_vr*interp_new';
+%     Yhat_new = Y_new - interp_new*wf_mn + d_interp_new*wf_mn*tau;
+%     H_new = d_interp_new*wf_mn;
+% %     grad_prior = (model.tau_trans_shape-1)/(tau-tau_shift) - 1/model.tau_trans_scale;
+% %     hess_prior = -(model.tau_trans_shape-1)/((tau-tau_shift)^2);
+% %     P_new = -inv(hess_prior);
+% %     m_new = tau + P*grad_prior;
+%     P_new = model.tau_trans_shape*model.tau_trans_scale^2;
+%     m_new = model.tau_trans_shape*model.tau_trans_scale;
+% 
+%     [drift_new] = linear_drift( lam1, tau, m_new, P_new, Yhat_new, H_new, R_new );
+%     
+%     err_est = 0.5*(lam1-lam0)*(drift_new-drift);
+%     err_crit = err_est'*err_est;
+%     
+%     % Step size adjustment
+%     if (err_crit > err_thresh) || (lam1 < 1)
+%         dl = min(dl_max, min(10*dl, dl_sf * (err_thresh/err_crit)^dl_pow * dl));
+%         if dl < dl_min
+%             warning('nlng_smoothupdatebyparticle:ErrorTolerance', 'Minimum step size reached. Local error tolerance exceeded.');
+%             ppsl_prob = 1E10;
+%             break;
+%         end
+%     end
+%     
+%     % Accept/reject step
+%     if err_crit < err_thresh
+%         
+%         ll_count = ll_count + 1;
+%         
+%         % Update time
+%         lam = lam1;
+%         
+%         % Update state
+%         beat.time = tau;
+%         
+%         lam_evo = [lam_evo lam];
+%         tau_evo = [tau_evo tau];
+%         
+%         % Update probability
+%         ppsl_prob = ppsl_prob - log(prob_ratio);
+%         
+%     else
+%         
+% %         disp('Error too large. Reducing step size');
+%         
+%     end
+%     
+% end
+% 
+% end
 

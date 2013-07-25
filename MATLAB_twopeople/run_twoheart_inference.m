@@ -126,7 +126,9 @@ plot(time, x-observ);
 figure, hold on
 plot(beats1(:,1), beats1(:,2),'g*')
 for ii = 1:length(ps), plot(ps(ii).beat(1).time, [diff(ps(ii).beat(1).time) 0], 'b*'); end
+% for ii = 1:length(ps), plot(ps(ii).beat(1).time, ps(ii).beat(1).param, 'b*-'); end
 if model.np == 2
     plot(beats2(:,1), beats2(:,2),'go')
     for ii = 1:length(ps), plot(ps(ii).beat(2).time, [diff(ps(ii).beat(2).time) 0], 'bo'); end
+%     for ii = 1:length(ps), plot(ps(ii).beat(2).time, ps(ii).beat(2).param, 'bo-'); end
 end
