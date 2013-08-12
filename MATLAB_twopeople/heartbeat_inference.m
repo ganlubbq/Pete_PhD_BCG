@@ -280,7 +280,9 @@ elseif length(p_idx) == 1
     h_of = @(tau) log_lhood(algo, model, time, observ, beat, p_idx, b_idx, wf_mn, wf_vr, tau);
     LB = tau0-0.15;
     UB = tau0+0.15;
-    tau = fminbnd(h_of, LB, UB);
+%     tau = fminbnd(h_of, LB, UB);
+    options = optimset('GradObj','on', 'Display','notify-detailed');%, 'TolX',0.001);
+    tau = fmincon(h_of, tau0, [], [], [], [], LB, UB, [], options);
     
     % Approximate Hessian?
     if nargout > 1
@@ -323,10 +325,13 @@ for bb = 1:length(p_idx)
 end
 
 [H, Y] = heartbeat_obsmat(algo, model, time, observ, beat);
-R = model.y_obs_vr*eye(length(Y)) + H*wf_vr*H';
+R = model.y_obs_vr*eye(length(Y));
+S = R + H*wf_vr*H';
 
-func = -loggausspdf(Y, H*wf_mn, R);
+func = -loggausspdf(Y, H*wf_mn, S);
+
 if nargout > 1
+    grad = zeros(length(p_idx),1);
     for bb = 1:length(p_idx)
         dH = heartbeat_obsmatderiv(algo, model, time, beat, p_idx(bb), b_idx(bb));
         invSigma = inv(wf_vr)+H'*(R\H);
