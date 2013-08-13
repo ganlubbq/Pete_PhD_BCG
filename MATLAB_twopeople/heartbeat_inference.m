@@ -251,7 +251,7 @@ for pp = 1:length(tau)
     beat(p_idx(pp)).time(b_idx(pp)) = tau(pp);
 end
 
-% Put the remaining beats back in, optimise marginally and proprose a time
+% Put the remaining beats back in
 for pp = 1:model.np
     beat(pp).time = [beat(pp).time original_beat(pp).time(2:end)];
     beat(pp).param = [beat(pp).param original_beat(pp).param(2:end)];

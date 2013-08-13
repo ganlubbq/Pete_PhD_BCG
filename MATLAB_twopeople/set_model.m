@@ -1,7 +1,7 @@
 % Set model parameters
 
 % Basics
-model.K = 200;
+model.K = 500;
 model.fs = 30;
 model.dw = 30;
 model.dp = 1;

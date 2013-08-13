@@ -1,4 +1,4 @@
-function [ deriv_vector ] = heartbeat_interpolationderiv( algo, model, t, cp_time )
+function [ deriv_vector ] = heartbeat_interpolationderiv( algo, model, t, cp_time, ante_cp_time )
 %HEARTBEAT_INTERPOLATIONDERIV Construct a matrix of the derivatives of 
 %the interpolation factors which allow a heartbeat waveform to be
 %interpolated to any time.
@@ -16,21 +16,31 @@ grid = dt(:,ones(1,model.dw))*model.fs - n(ones(length(t),1),:);
 deriv_vector = -model.fs*sincd(grid);
 deriv_vector(isinf(grid))=0;
 
-% window = ones(size(dt));
-% zto_idx = (t-cp_time)<(1/model.fs);
-% window(zto_idx) = 0.5*( 1-cos(pi*model.fs*dt(zto_idx)) );
-% window((t-cp_time)<0)=0;
-% 
-% deriv_vector = window(:,ones(1,model.dw)).*deriv_vector;
-% 
-% other_term = zeros(size(grid));
-% other_term(zto_idx,:) = sinc(grid(zto_idx,:));
-% 
-% window = ones(size(dt));
-% window(zto_idx) = 0.5*pi*model.fs*sin(pi*model.fs*dt(zto_idx));
-% window((t-cp_time)<0)=0;
-% 
-% deriv_vector = deriv_vector - window(:,ones(1,model.dw)).*other_term;
+window = ones(size(dt));
+zto_idx = (t-cp_time)<(1/model.fs);
+window(zto_idx) = 0.5*( 1-cos(pi*model.fs*dt(zto_idx)) );
+window((t-cp_time)<0)=0;
+
+deriv_vector = window(:,ones(1,model.dw)).*deriv_vector;
+
+other_term = zeros(size(grid));
+other_term(zto_idx,:) = sinc(grid(zto_idx,:));
+
+window = ones(size(dt));
+window(zto_idx) = 0.5*pi*model.fs*sin(pi*model.fs*dt(zto_idx));
+window((t-cp_time)<0)=0;
+
+deriv_vector = deriv_vector - window(:,ones(1,model.dw)).*other_term;
+
+dt2 = t - ante_cp_time;
+dt2 = dt2(:);
+grid2 = dt2(:,ones(1,model.dw))*model.fs - n(ones(length(t),1),:);
+blend_term = zeros(size(deriv_vector));
+blend_term(zto_idx,:) = sinc(grid2(zto_idx,:));
+blend_term(isinf(grid2))=0;
+window = ones(size(dt2));
+window(zto_idx) = 0.5*pi*model.fs*sin(pi*model.fs*dt(zto_idx));
+deriv_vector = deriv_vector + window(:,ones(1,model.dw)).*blend_term;
 
 end
 
