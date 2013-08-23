@@ -1,0 +1,140 @@
+\documentclass{article}
+
+%%% Packages %%%
+
+% Graphics
+\usepackage{graphicx}
+\usepackage[caption=false,font=footnotesize]{subfig}
+
+% Formatting
+\usepackage{color}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsfonts}
+\usepackage{bbm}
+\usepackage[T1]{fontenc}
+
+% Environments
+\usepackage{IEEEtrantools}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+
+% References
+\usepackage{natbib}
+
+% Macro
+\usepackage{etoolbox}
+
+
+%%% Graphics %%%
+\graphicspath{{figures/}}
+
+
+%%% Macros %%%
+\input{bcg_heartbeat_inference_macros}
+
+
+%%% Environments %%%
+\newenvironment{meta}[0]{\color{red} \em}{}
+\newtheorem{lemma}{Lemma}
+
+
+%%% Titles and stuff %%%
+\title{Variable Rate Algorithms for Inference of Heartbeats in a Balistocardiography Signal}
+\author{Pete Bunch}
+
+
+%%% DOCUMENT %%%
+\begin{document}
+
+\maketitle
+
+\section{Introduction}
+
+
+
+\section{Variable Rate Models}
+
+In contrast with a standard hidden Markov model, the dynamics of the latent state in a variable rate model are dependent of a series of changepoints which occur at instantaneous moments in continuous time, and their associated parameters.
+
+Consider a time interval $[0,\ctmax]$ during which observations $\{\ob{1} \dots \ob{\timax}\}$ are made at times $\{\ot{1} \dots \ot{\timax}\}$ (where for convenience we require $\ot{1}=0$ and $\ot{\timax}=\ctmax$). During this period an unknown number of changepoints $\fcpi$ occur at times $\{\cpt{1} \dots \cpt{\fcpi} \}$, each with associated changepoint parameters $\{\cpp{1} \dots \cpp{\fcpi} \}$. It may also be necessary to consider $\cpt{0}$ and $\cpp{0}$, the changepoint time and parameter immediately preceding the beginning of the observations. Henceforth, discrete sets such as these will be written in the format $z_{1:\ti} = \{z_{1} \dots z_{\ti}\}$.
+
+Inference algorithms for variable rate models will require us to manipulate and calculate probabilities for sequences of changepoints. To this end, we also define the following variable for the sequence of changepoint times and parameters up until a particular observation instant,
+%
+\begin{IEEEeqnarray}{rCl}
+ \cp{\ti} = \{\cpt{j}, \cpp{j} \: \forall j : 0 \leq \cpt{j+1}, \cpt{j} < \ot{\ti} \} \nonumber      ,
+\end{IEEEeqnarray}
+%
+and likewise for between two of the observation instants,
+%
+\begin{IEEEeqnarray}{rCl}
+ \cp[\ti_1]{\ti_2} = \{\cpt{j}, \cpp{j} \: \forall j : \ot{\ti_1} \leq \cpt{j} < \ot{\ti_2} \} \nonumber      .
+\end{IEEEeqnarray}
+
+A final piece of notation, the following counting variables are introduced to keep track of the most recent changepoint to have occurred,
+%
+\begin{IEEEeqnarray}{rCl}
+ \mrcpi(\ct)  & = & \max(\cpi : \cpt{\cpi}<\ct) \nonumber \\
+ \mrcpi_{\ti} & = & \mrcpi(\ot{\ti}) \nonumber      .
+\end{IEEEeqnarray}
+
+The times and parameters of the changepoints are modelled as jointly Markovian,
+%
+\begin{IEEEeqnarray}{rCl}
+ \left\{ \cpt{\cpi}, \cpp{\cpi} \right\} & \sim & \cptransden{\cpt{},\cpp{}}(\cpt{\cpi}, \cpp{\cpi} | \cpt{\cpi-1}, \cpp{\cpi-1}) \nonumber      ,
+\end{IEEEeqnarray}
+%
+with this distribution constructed such that $\prob(\cpt{\cpi} < \cpt{\cpi-1}) = 0$. Just as in \citep{Whiteley2011}, a survivor function is defined for the probability that no new changepoint occurs before a given time,
+%
+\begin{IEEEeqnarray}{rCl}
+ \survfunc{\cpt{\cpi}}{\cpp{\cpi}}{\ct} & = & \prob(\cpt{\cpi+1} > \ct | \cpt{\cpi}, \cpp{\cpi}) \nonumber \\
+ & = & 1 - \int_{\cpt{\cpi}}^{\ct} \cptransden{\cpt{}}(\xi | \cpt{\cpi}, \cpp{\cpi}) \nonumber      .
+\end{IEEEeqnarray}
+
+Each changepoint sequence $\cp[\ti_1]{\ti_2}$ constitutes a finite duration marked point process, taking values in the space formed by the disjoint union,
+%
+\begin{IEEEeqnarray}{rCl}
+ \cpspace[\ti_1]{\ti_2} & = & \bigcup_l \{l\} \times \cptspace[\ti_1]{\ti_2,l} \times \cppspace^l \nonumber      ,
+\end{IEEEeqnarray}
+%
+where $\cppspace$ is the space of $\cpp{\cpi}$ and $\cptspace[\ti_1]{\ti_2,l} \subset \reals^l$ is the space spanned by $l$ changepoint times subject to the conditions that they all lie in the interval $[\ot{\ti_1},\ot{\ti_2}]$ and that each is greater than its predecessor.
+
+A rigorous treatment of probability distributions over marked point processes may be found in \citep{Jacobsen2006}. We can write the following prior distribution for a changepoint sequence,
+%
+\begin{IEEEeqnarray}{rCl}
+ \cptransden{\cp{}}(\cp{\ti}) & = & \survfunc{\cpt{\mrcpi_{\ti}}}{\cpp{\mrcpi_{\ti}}}{\ot{\ti}} \cptransden{\cpt{},\cpp{}}(\cpt{0},\cpp{0}) \prod_{\cpi=1}^{\mrcpi_{\ti}} \cptransden{\cpt{},\cpp{}}(\cpt{\cpi}, \cpp{\cpi} | \cpt{\cpi-1}, \cpp{\cpi-1}) \nonumber      ,
+\end{IEEEeqnarray}
+%
+and hence the sequence transition density is,
+%
+\begin{IEEEeqnarray}{rCl}
+ \cptransden{\cp{}}(\cp[\ti_1]{\ti_2} | \cp{\ti_1}) & = & \frac{ \cptransden{\cp{}}(\cp{\ti_2}) }{ \cptransden{\cp{}}(\cp{\ti_1}) } \nonumber \\
+ & = & \frac{ \survfunc{\cpt{\mrcpi_{\ti_2}}}{\cpp{\mrcpi_{\ti_2}}}{\ot{\ti_2}} }{ \survfunc{\cpt{\mrcpi_{\ti_1}}}{\cpp{\mrcpi_{\ti_1}}}{\ot{\ti_1}} } \prod_{\cpi=\mrcpi_{\ti_1}+1}^{\mrcpi_{\ti_2}} \cptransden{\cpt{},\cpp{}}(\cpt{\cpi}, \cpp{\cpi} | \cpt{\cpi-1}, \cpp{\cpi-1}) \nonumber      .
+\end{IEEEeqnarray}
+
+
+
+\subsection{Conditionally Deterministic Models}
+
+The latent state is a continuous-time process denoted $\cls{\ct}$ which evolves according to some benign dynamics conditional upon the changepoint sequence. In this paper, the state dynamical models which we study are conditionally deterministic, i.e. the state is precisely determined by the sequence of changepoints, with no additional random components. In addition, assume that $\cls{\ct}$ depends only the preceding changepoint, i.e. $\{\cpt{\mrcpi(\ct)}, \cpp{\mrcpi(\ct)}\}$. A state transition function may then be written,
+
+{\meta REWRITING FROM HERE}
+
+
+%
+\begin{IEEEeqnarray}{rCll}
+ x(t) & = & f(x_{K_n}, u_{K_n}, \tau_{K_n}, t) &, \qquad \tau_{K_n} < t \leq \tau_{K_{n}+1}    \label{eq:disc_time_state_diff_eq}     .
+\end{IEEEeqnarray}
+
+By choosing $t = \tau_{K_{n}+1}$, this equation specifies the state at the next changepoint time. Similarly, by choosing $t=t_n$, the state at the observation times may be evaluated --- these latter points will be denoted $\hat{x}_n$. To complete the framework, a probabilistic measurement model must be devised for the observation process, $p(y_n|\hat{x}_n)$.
+
+For convenience, we assume that $x_0$ is known in the following sections. This means that $x(t)$ may be calculated deterministically for all $t$ given $\theta$. This condition is easily relaxed by including $x_0$ as a random variable in the posterior distribution.
+
+
+\section{Variable Rate Block Filtering}
+\section{Variable Rate Models for Balistocardiography}
+\section{Results}
+
+\bibliographystyle{dcu}
+\bibliography{D:/pb404/Dropbox/PhD/Cleanbib}
+\end{document} 

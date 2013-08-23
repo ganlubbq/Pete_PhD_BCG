@@ -1,0 +1,53 @@
+%%% MACROS FOR MATHEMATICAL NOTATION IN BCG HEARTBEAT INFERENCE PAPER %%%
+
+% Functions and operators
+\newcommand{\half}{\frac{1}{2}}                                 % Half
+\DeclareMathOperator{\trace}{Tr}                                % Trace
+\newcommand{\expect}[1]{\mathbb{E}_{#1}}                        % Expectation
+\newcommand{\variance}[1]{\mathbb{V}_{#1}}                      % Variance
+\newcommand{\magdet}[1]{\left|\left| #1 \right|\right|}         % Magnitude of the determinant
+\newcommand{\indic}[1]{\mathbbm{1}_{#1}}                        % Indicator function
+\newcommand{\bigo}[1]{\mathcal{O}\left({#1}\right)}             % Big O
+\newcommand{\mhaccept}{\alpha}                                  % Metropolis-Hastings acceptance probability
+
+% Density families
+\newcommand{\normalden}[3]{\mathcal{N}\left(#1\left|#2,#3\right.\right)}    % Normal density
+\newcommand{\gammaden}[3]{\mathcal{\Gamma}\left(#1|#2,#3\right)}            % Gamma density
+\newcommand{\studenttden}[4]{\mathcal{ST}\left(#1|#2,#3,#4\right)}          % Student-t density
+
+% Basics
+\newcommand{\timax}{N}                          % Maximum Observation/time index
+\newcommand{\ct}{t}                             % Continuous time
+\newcommand{\ctmax}{T}                          % Maximum continuous time
+\newcommand{\cpi}{k}                            % Changepoint indexing
+\newcommand{\cpt}[1]{\tau_{#1}}                 % Changepoint time
+\newcommand{\cpp}[1]{u_{#1}}                    % Changepoint parameter
+%\newcommand{\cp}[2][]{\ifstrempty{#1}{\theta_{#2}}{\theta_{\left[#1,#2\right]}}}      % Changepoint set
+\newcommand{\cp}[2][]{\ifstrempty{#1}{\theta_{#2}}{\theta_{#1 || #2}}}      % Changepoint set
+\newcommand{\mrcpi}{K}                          % Most recent changepoint index
+\newcommand{\fcpi}{K_{\timax}}                  % Final changepoint index
+\newcommand{\ls}[1]{x_{#1}}                     % Latent state
+\newcommand{\cls}[1]{x(#1)}                     % Continuous time latent state
+\newcommand{\ti}{n}                             % Observation/time indexing
+\newcommand{\ot}[1]{t_{#1}}                     % Observation time
+\newcommand{\ob}[1]{y_{#1}}                     % Observation
+
+% Particle shizzle
+\newcommand{\pss}[2][]{^{(#2)#1}}               % Particle superscript
+\newcommand{\pw}[1]{w_{#1}}                     % Particle weight
+\newcommand{\predpw}[1]{\hat{w}_{#1}}           % Predictive particle weight
+\newcommand{\npw}[1]{\bar{w}_{#1}}              % Normalised particle weight
+\newcommand{\naw}[1]{\bar{v}_{#1}}              % Normalised auxiliary weight
+\newcommand{\anc}[1]{a_{#1}}                    % Particle ancestor
+
+% Densities and Probabilities
+\newcommand{\prob}{P}                           % Probability
+\newcommand{\survfunc}[3]{S(#1,#2,#3)}          % Survivor function
+\newcommand{\cptransden}[1]{p_{#1}}             % Transition density for changepoint times and parameters
+
+% Probability spaces
+\newcommand{\reals}{\mathbb{R}}                 % Reals
+\newcommand{\cpspace}[2][]{\ifstrempty{#1}{\Theta_{#2}}{\Theta_{#1 || #2}}}             % Space for changepoints
+\newcommand{\cptspace}[2][]{\ifstrempty{#1}{\mathbb{T}_{#2}}{\mathbb{T}_{#1 || #2}}}    % Space for changepoint times
+\newcommand{\cppspace}{\mathbb{U}}             % Space for a changepoint
+
