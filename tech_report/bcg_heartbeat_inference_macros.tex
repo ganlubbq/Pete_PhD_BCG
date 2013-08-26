@@ -24,6 +24,7 @@
 \newcommand{\cpp}[1]{u_{#1}}                    % Changepoint parameter
 %\newcommand{\cp}[2][]{\ifstrempty{#1}{\theta_{#2}}{\theta_{\left[#1,#2\right]}}}      % Changepoint set
 \newcommand{\cp}[2][]{\ifstrempty{#1}{\theta_{#2}}{\theta_{#1 || #2}}}      % Changepoint set
+\newcommand{\repcp}[2][]{\ifstrempty{#1}{\tilde{\theta}_{#2}}{\tilde{\theta}_{#1 || #2}}}      % Changepoint set replacement
 \newcommand{\mrcpi}{K}                          % Most recent changepoint index
 \newcommand{\fcpi}{K_{\timax}}                  % Final changepoint index
 \newcommand{\ls}[1]{x_{#1}}                     % Latent state
@@ -44,10 +45,33 @@
 \newcommand{\prob}{P}                           % Probability
 \newcommand{\survfunc}[3]{S(#1,#2,#3)}          % Survivor function
 \newcommand{\cptransden}[1]{p_{#1}}             % Transition density for changepoint times and parameters
+\newcommand{\impden}[2]{q_{#1 || #2}}           % Changepoint importance density
+\newcommand{\artden}[2]{\rho_{#1 || #2}}        % Changepoint artificial density
+\newcommand{\lhood}{p_{y}}                      % Likelihood
 
 % Probability spaces
 \newcommand{\reals}{\mathbb{R}}                 % Reals
+\newcommand{\lsspace}{\mathbb{X}}               % Space for latent state
 \newcommand{\cpspace}[2][]{\ifstrempty{#1}{\Theta_{#2}}{\Theta_{#1 || #2}}}             % Space for changepoints
 \newcommand{\cptspace}[2][]{\ifstrempty{#1}{\mathbb{T}_{#2}}{\mathbb{T}_{#1 || #2}}}    % Space for changepoint times
 \newcommand{\cppspace}{\mathbb{U}}             % Space for a changepoint
 
+% Generic model features
+\newcommand{\transfun}{f}                       % Deterministic transition function
+
+% Block filtering variables
+\newcommand{\winlen}{L}                         % Window length
+\newcommand{\blocklen}{B}                       % Block length
+
+% Heartbeat model
+\DeclareMathOperator{\sinc}{sinc}               % Sinc
+\newcommand{\period}{\Delta}                    % Sampling period
+\newcommand{\hbst}[1]{b_{#1}}                   % Heartbeat start time
+%\newcommand{\hbwf}[2][]{\omega_{#1}^{[#2]}}         % Heartbeat waveform (person in the superscript, sensor,index in the subscript)
+\newcommand{\hbwf}[2][]{\ifstrempty{#1}{\omega_{#2}}{\omega_{#2}^{[#1]}}}             % Heartbeat waveform (person in the superscript, sensor,index in the subscript)
+\newcommand{\hs}[2]{x_{#1}(#2)}                 % Heartbeat signal
+\newcommand{\intrp}[1][]{\ifstrempty{#1}{h}{h^{[#1]}}}                  % Interpolation factor
+%\newcommand{\wfi}{m}                            % Waveform index
+\newcommand{\si}{s}                             % Sensor index
+\newcommand{\peri}{p}                           % Person index
+\newcommand{\obscov}{\sigma_y^2 I}              % Obsevation covariance matrix
