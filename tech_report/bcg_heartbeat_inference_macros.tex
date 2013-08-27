@@ -12,7 +12,7 @@
 
 % Density families
 \newcommand{\normalden}[3]{\mathcal{N}\left(#1\left|#2,#3\right.\right)}    % Normal density
-\newcommand{\gammaden}[3]{\mathcal{\Gamma}\left(#1|#2,#3\right)}            % Gamma density
+\newcommand{\gammaden}[3]{\mathcal{G}\left(#1\left|#2,#3\right.\right)}            % Gamma density
 \newcommand{\studenttden}[4]{\mathcal{ST}\left(#1|#2,#3,#4\right)}          % Student-t density
 
 % Basics
@@ -22,6 +22,7 @@
 \newcommand{\cpi}{k}                            % Changepoint indexing
 \newcommand{\cpt}[1]{\tau_{#1}}                 % Changepoint time
 \newcommand{\cpp}[1]{u_{#1}}                    % Changepoint parameter
+\newcommand{\cplp}[1]{z_{#1}}                   % Changepoint linear parameter
 %\newcommand{\cp}[2][]{\ifstrempty{#1}{\theta_{#2}}{\theta_{\left[#1,#2\right]}}}      % Changepoint set
 \newcommand{\cp}[2][]{\ifstrempty{#1}{\theta_{#2}}{\theta_{#1 || #2}}}      % Changepoint set
 \newcommand{\repcp}[2][]{\ifstrempty{#1}{\tilde{\theta}_{#2}}{\tilde{\theta}_{#1 || #2}}}      % Changepoint set replacement
@@ -58,6 +59,12 @@
 
 % Generic model features
 \newcommand{\transfun}{f}                       % Deterministic transition function
+\newcommand{\rbtransmat}{A}                     % Parameter transition matrix for Rao-Blackwellisable models
+\newcommand{\rbtranscov}{Q}                     % Parameter covariance matrix for Rao-Blackwellisable models
+\newcommand{\obsmat}{H}                         % Observation matrix
+\newcommand{\rbobscov}{R}                         % Observation covariance matrix 
+\newcommand{\gamshape}[1]{a_{#1}}               % Gamma density shape (for both beat times and minimum durations)
+\newcommand{\gamscale}[1]{b_{#1}}               % Gamma density shape (for both beat times and minimum durations)
 
 % Block filtering variables
 \newcommand{\winlen}{L}                         % Window length
@@ -67,11 +74,19 @@
 \DeclareMathOperator{\sinc}{sinc}               % Sinc
 \newcommand{\period}{\Delta}                    % Sampling period
 \newcommand{\hbst}[1]{b_{#1}}                   % Heartbeat start time
+\newcommand{\hbmd}[1]{\lambda_{#1}}             % Heartbeat minimum duration
 %\newcommand{\hbwf}[2][]{\omega_{#1}^{[#2]}}         % Heartbeat waveform (person in the superscript, sensor,index in the subscript)
 \newcommand{\hbwf}[2][]{\ifstrempty{#1}{\omega_{#2}}{\omega_{#2}^{[#1]}}}             % Heartbeat waveform (person in the superscript, sensor,index in the subscript)
+\newcommand{\hbwflen}{D}                        % Length of heartbeat waveform
 \newcommand{\hs}[2]{x_{#1}(#2)}                 % Heartbeat signal
 \newcommand{\intrp}[1][]{\ifstrempty{#1}{h}{h^{[#1]}}}                  % Interpolation factor
 %\newcommand{\wfi}{m}                            % Waveform index
 \newcommand{\si}{s}                             % Sensor index
 \newcommand{\peri}{p}                           % Person index
-\newcommand{\obscov}{\sigma_y^2 I}              % Obsevation covariance matrix
+\newcommand{\hbwfpriorcov}{P}                 % Waveform prior covariance
+\newcommand{\hbwftranscov}{Q}                 % Waveform transition covariance
+\newcommand{\obscov}[1][]{\sigma_y^2 I}                 % Observation covariance
+\newcommand{\hbwfmn}[1]{m_{#1}}                 % Heartbeat waveform mean
+\newcommand{\hbwfvr}[1]{P_{#1}}                 % Heartbeat waveform variance
+\newcommand{\hbwfpredmn}[1]{\hat{m}_{#1}}                 % Heartbeat waveform predicted mean
+\newcommand{\hbwfpredvr}[1]{\hat{P}_{#1}}                 % Heartbeat waveform predicted variance

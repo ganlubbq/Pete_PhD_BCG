@@ -62,7 +62,7 @@ Consider a time interval $[0,\ctmax]$ during which observations $\{\ob{1} \dots 
 Inference algorithms for variable rate models will require us to manipulate and calculate probabilities for sequences of changepoints. To this end, we also define the following variable for the sequence of changepoint times and parameters up until a particular observation instant,
 %
 \begin{IEEEeqnarray}{rCl}
- \cp{\ti} = \{\cpt{j}, \cpp{j} \: \forall j : 0 \leq \cpt{j} < \ot{\ti} \} \nonumber      ,
+ \cp{\ti} = \{\cpt{j}, \cpp{j} \: \forall j : 0 < \cpt{j+1}, \cpt{j} < \ot{\ti} \} \nonumber      ,
 \end{IEEEeqnarray}
 %
 and likewise for between two of the observation instants,
@@ -112,27 +112,57 @@ and hence the sequence transition density is,
  & = & \frac{ \survfunc{\cpt{0:\mrcpi_{\ti_2}}}{\cpp{0:\mrcpi_{\ti_2}}}{\ot{\ti_2}} }{ \survfunc{\cpt{0:\mrcpi_{\ti_1}}}{\cpp{0:\mrcpi_{\ti_1}}}{\ot{\ti_1}} } \prod_{\cpi=\mrcpi_{\ti_1}+1}^{\mrcpi_{\ti_2}} \cptransden{\cpt{},\cpp{}}(\cpt{\cpi}, \cpp{\cpi} | \cpt{0:\cpi-1}, \cpp{0:\cpi-1}) \nonumber      .
 \end{IEEEeqnarray}
 
+The latent state is a continuous-time process denoted $\cls{\ct} \in \lsspace$ which evolves according to some benign dynamics conditional upon the changepoint sequence. In this paper we consider only one of the many possibilities for these dynamics, which is introduced in the specific context of the balistocardiography models.
 
 
-\subsection{Conditionally Deterministic Models}
 
-The latent state is a continuous-time process denoted $\cls{\ct} \in \lsspace$ which evolves according to some benign dynamics conditional upon the changepoint sequence. In this paper, the state dynamical models which we study are conditionally deterministic, i.e. the state is precisely determined by the sequence of changepoints and a starting point, $\cls{\cpt{0}}=\ls{0}$, with no additional random components. In addition, assume that $\cls{\ct}$ depends only on the preceding changepoint, i.e. $\{\cpt{\mrcpi(\ct)}, \cpp{\mrcpi(\ct)}\}$. A state transition function may then be written,
+%\subsection{State Dynamics and Observation Likelihoods}
 %
-\begin{IEEEeqnarray}{rCll}
- \cls{\ct} & = & \transfun\left( \cls{\ot{\mrcpi(\ct)}}, \cpt{\mrcpi(\ct)}, \cpp{\mrcpi(\ct)}, \ct \right) & , \qquad \cpt{\mrcpi(\ct)} < \ct \leq \cpt{\mrcpi(\ct) + 1} \nonumber      .
-\end{IEEEeqnarray}
+%The state is modelled as a evolving deterministically conditional upon the changepoint sequence and an additional linear changepoint parameter
+%
+% the state dynamical models which we study are conditionally deterministic, i.e. the state is precisely determined by the sequence of changepoints and a starting point, $\cls{\cpt{0}}=\ls{0}$, with no additional random components. A state transition function may then be written,
+%%
+%\begin{IEEEeqnarray}{rCl}
+% \cls{\ct} & = & \transfun\left( \ls{0}, \cpt{0:\mrcpi(\ct)}, \cpp{0:\mrcpi(\ct)}, \ct \right) \nonumber      .
+%\end{IEEEeqnarray}
+%
+%To complete the model, we define a likelihood density for each observation conditional upon the latent state at that time,
+%%
+%\begin{IEEEeqnarray}{c}
+% \lhood(\ob{\ti} | \cls{\ot{\ti}}) \nonumber       .
+%\end{IEEEeqnarray}
+%
+%In this case, the likelihood of an observation given the changepoint sequence may be written as,
+%%
+%\begin{IEEEeqnarray}{rCl}
+% \lhood(\ob{\ti} | \cp{\ti}) & = & \lhood(\ob{\ti} | \cls{\ot{\ti}}) \nonumber       .
+%\end{IEEEeqnarray}
+%
+%\subsection{Rao-Blackwellising the Parameters}
+%
+%A further elaboration to the basic variable rate model is now explored. We divide each changepoint parameter into two parts $\{\cpp{\cpi}, \cplp{\cpi}\}$, the latter of which evolves according linear Gauss-Markov dynamics conditional upon the rest of the sequence,
+%%
+%\begin{IEEEeqnarray}{rCl}
+% \left\{ \cpt{\cpi}, \cpp{\cpi}, \cplp{\cpi} \right\} & \sim & \cptransden{\cpt{},\cpp{}}(\cpt{\cpi}, \cpp{\cpi} | \cpt{0:\cpi-1}, \cpp{0:\cpi-1}) \cptransden{\cplp{}}(\cplp{\cpi} | \cpt{0:\cpi}, \cpp{0:\cpi})\nonumber \\
+% \cptransden{\cplp{}}(\cplp{\cpi} | \cpt{0:\cpi}, \cpp{0:\cpi}) & = & \normalden{}{}{} \nonumber      .
+%\end{IEEEeqnarray}
+%
+%Assume also, that the observation density is linear and Gaussian,
+%%
+%\begin{IEEEeqnarray}{rCl}
+% \lhood(\ob{\ti} | \cls{\ot{\ti}}) & = & \normalden{\ob{\ti}}{\obsmat \cls{\ot{\ti}}}{\obscov}
+%\end{IEEEeqnarray}
+%%
+%then the linear parameters may be analytically marginalised, a process known as Rao-Blackwelliation. A filter employing this strategy is detailed in \citep{Morelande2009a}.
+%
+%With such a model structure, the likelihood of an observation given the changepoint sequence and previous observations may be written as,
+%%
+%\begin{IEEEeqnarray}{rCl}
+% \lhood(\ob{\ti} | \cp{\ti}) & = & \int \normalden{\ob{\ti}}{\obsmat \cls{\ot{\ti}}}{\obscov}
+% \lhood(\ob{\ti} | \cls{\ot{\ti}}) \nonumber       .
+%\end{IEEEeqnarray}
 
-To complete the model, we define a likelihood density for each observation conditional upon the latent state at that time,
-%
-\begin{IEEEeqnarray}{c}
- \lhood(\ob{\ti} | \cls{\ot{\ti}}) \nonumber       ,
-\end{IEEEeqnarray}
-%
-and write the likelihood of a set of observations as,
-%
-\begin{IEEEeqnarray}{rCl}
- \lhood(\ob{\ti_1:\ti_2} | \cp{\ti_2}) & = & \prod_{l} \lhood(\ob{l} | \cls{\ot{\ti}}) \nonumber       ,
-\end{IEEEeqnarray}
+
 
 
 \section{Variable Rate Block Filtering}
@@ -143,15 +173,20 @@ The analytic calculation of posterior distributions over the changepoint sequenc
  p(\cp{\ti} | \ob{1:\ti}) & \approx & \sum_j \pw{\ti}\pss{j} \delta_{ \cp{\ti}\pss{j} }(\cp{\ti}) \nonumber      .
 \end{IEEEeqnarray}
 %
-As the number of particles tends towards infinite, integrals calculated using this approximation tend towards their true value.
+The state dynamical model is constructed so that $p(\cls{\ct}|\cp{\ti}, \ob{1:\ti})$ may be calculated analytically (for $\ct<\ot{\ti}$) --- this conditional posterior is commonly deterministic or Gaussian --- and hence the following approximation to the latent state distribution is made,
+%
+\begin{IEEEeqnarray}{rCll}
+ p(\cls{\ct} | \ob{1:\ti}) & = & \int p(\cls{\ct}|\cp{\ti}\pss{j}, \ob{1:\ti}) p(\cp{\ti} | \ob{1:\ti}) d\cp{\ti} &, \qquad \ct < \ot{\ti} \nonumber \\
+ & \approx & \sum_j \pw{\ti}\pss{j} p(\cls{\ct}|\cp{\ti}\pss{j}, \ob{1:\ti}) \nonumber      .
+\end{IEEEeqnarray}
 
 \subsection{Motivation}
 
-The principal difficulty in devising inference algorithms for variable rate models is that changepoints are rarely apparent from the observations until a significant time after they have occurred. For example, when tracking a manoeuvering vehicle from measurements of its position, an abrupt change in its acceleration will not be evident until a sufficient deviation in course from its previous motion has accumulated. This phenomenon results in simpler particle filters, which at each time step extend the changepoint sequence from $\ot{\ti}$ to $\ot{\ti+1}$ in a straightforward manner \citep{Godsill2004a,Godsill2007}, to be quite ineffective in many cases. Performance may be substantially improved by allowing retrospective alternations to the changepoint sequence. This was achieved by \citet{Bunch2012a} by including resample-move steps \citep{Gilks2001}, and by \cite{Whiteley2011} with the use of an SMC sampler \cite{DelMoral2006,Doucet2006}.
+The principal difficulty in devising inference algorithms for variable rate models is that changepoints are rarely apparent from the observations until a significant time after they have occurred. For example, when tracking a manoeuvering vehicle from measurements of its position, an abrupt change in its acceleration will not be evident until a sufficient deviation in course from its previous motion has accumulated. This phenomenon results in simpler particle filters, which at each time step extend the changepoint sequence from $\ot{\ti}$ to $\ot{\ti+1}$ in a straightforward manner \citep{Godsill2004a,Godsill2007}, to be quite ineffective in many cases. Performance may be substantially improved by allowing retrospective alterations to the changepoint sequence. This was achieved by \citet{Bunch2013} by including resample-move steps \citep{Gilks2001}, and by \citet{Whiteley2011} with the use of an SMC sampler \citep{DelMoral2006,Doucet2006}.
 
-The obvious disadvantage of allowing retrospective alterations to the changepoint sequence is that the computational burden of the algorithm is substantially increased. With no restrictions on the permitted alterations, the complexity becomes $\bigo{\timax^2}$. By imposing a maximum window length spanning $\winlen$ observations, this may be reduced to $\bigo{\timax \times \winlen}$, but this may still be prohibitive. Here we propose an algorithm which abandons the requirement to update with the arrival of every new observation, but only once for each block of $\blocklen$. This reduces the complexity to $\bigo{\frac{\timax \times \winlen}{\blocklen}}$. The block length $\blocklen$ will be smaller than the window length $\winlen$ by a small factor (say $1.5$--$3$) meaning that there is still significant overlap between the windows of subsequent processing steps. Changepoints which occur late in the window at one processing step will be earlier in the window at the next step, and estimates may be revised in the light of the new observations received.
+The obvious disadvantage of allowing retrospective alterations to the changepoint sequence is that the computational burden of the algorithm is substantially increased. With no restrictions on the permitted alterations, the complexity becomes $\bigo{\timax^2}$. By imposing a maximum window length spanning $\winlen$ observations, this may be reduced to $\bigo{\timax \times \winlen}$, but this may still be prohibitive. Here we propose an algorithm which abandons the requirement for the filter to update with the arrival of every new observation, but only once for each block of $\blocklen$. This reduces the complexity to $\bigo{\frac{\timax \times \winlen}{\blocklen}}$. The block length $\blocklen$ will be smaller than the window length $\winlen$ by a small factor (say $1.5$--$3$) meaning that there is still significant overlap between the windows of subsequent processing steps. Changepoints which occur late in the window at one processing step will be earlier in the window at the next step, and estimates may be revised in the light of the new observations received.
 
-Apart from updating only once per block, the particle filter proposed here bears many similarities with the algorithm of \citet{Whiteley2011} but also the following important difference. We formulate proposals in terms of the changepoint sequence $\cp[\ot{\ti_1}]{\ot{\ti_1}}$, rather than by explicitly adjusting, adding or removing individual changepoints. Ultimately, these two systems can be seen as equivalent, but we find our framework better adapted to the types of proposals we wish to use. In particular, alterations to the number of changepoints in the window are more easily handled.
+Apart from updating only once per block, the particle filter proposed here bears many similarities with the algorithm of \citet{Whiteley2011} but also the following important difference. We formulate proposals in terms of the changepoint sequence $\cp[\ot{\ti_1}]{\ot{\ti_2}}$, rather than by explicitly adjusting, adding or removing individual changepoints. Ultimately, these two systems can be seen as equivalent, but we find our framework better adapted to the types of proposals we wish to use. In particular, alterations to the number of changepoints in the window are more easily handled.
 
 \subsection{Formulation}
 
@@ -195,7 +230,7 @@ A valid algorithm results whatever choice is made for $\artden{\ti}{\ti-\blockle
 With these choices we have,
 %
 \begin{IEEEeqnarray}{rCl}
- \pw{\ti}\pss{i} & \propto & \frac{ \lhood(\ob{\ti:\ti+\winlen} | \cp{\ti}\pss{i}, \repcp[\ti]{\ti+\winlen}\pss{i}) }{ \lhood(\ob{\ti:\ti-\blocklen+\winlen} | \cp{\ti-\blocklen+\winlen}\pss{i}) } \nonumber       .
+ \pw{\ti}\pss{i} & \propto & \frac{ \lhood(\ob{\ti+1:\ti+\winlen} | \cp{\ti}\pss{i}, \repcp[\ti]{\ti+\winlen}\pss{i}, \ob{1:\ti}) }{ \lhood(\ob{\ti+1:\ti-\blocklen+\winlen} | \cp{\ti-\blocklen+\winlen}\pss{i}, \ob{1:\ti}) } \nonumber       .
 \end{IEEEeqnarray}
 
 For the heartbeat inference problem investigated in this paper a simple but effective modification to this basic proposal is possible.
@@ -207,7 +242,9 @@ For the heartbeat inference problem investigated in this paper a simple but effe
 
 \subsection{System Outline}
 
-The balistocardiography (BCG) system under consideration consists of four force sensors placed under the legs of a bed, which can be used to detect the heartbeats of a subject lying still on the bed. However, this is a challenging task to accomplish robustly. The heartbeat pulses recorded by the sensors display a significant amount of variation depending on the subject, the position in which they lie, and many other factors. Moreover, they do not often possess a clear primary peak from which beat timings may be extracted, as an electrocardiography (ECG) signal often does. In addition, the signal is corrupted by frequent interference arising from the subject moving. Finally, the task becomes much more difficult when there are two people lying in the bed together. The sensors now measure a combination of two heartbeat signals which must be separated in parallel as the timings are inferred.
+The balistocardiography (BCG) system under consideration consists of four force sensors placed under the legs of a bed, which are capable of recording the vibration caused by the subject's beating heart. Robust detection of the heartbeats in this signal is, however, a challenging problem. The heartbeat waveforms reaching the sensors exhibit significant variation depending on the bed, the subject, the position in which they lie, and many other factors. Moreover, these waveforms do not often possess a clear principal peak from which beat timings may be extracted, as an electrocardiography (ECG) signal often does. In addition, the signal is corrupted by frequent interference arising from the subject moving. Finally, the task becomes much more difficult when there are two people lying in the bed together. The sensors now measure a combination of two heartbeat signals which must be separated in parallel as the timings are inferred. The BCG inference task fits naturally into the variable rate framework, which heartbeat times corresponding to changepoints.
+
+{\meta Add some examples.}
 
 \subsection{Preprocessing}
 
@@ -215,29 +252,81 @@ The measurements from the four sensors are first low-pass filtered with a cut-of
 
 \subsection{The Basic Model}
 
-The BCG inference task fits naturally into the variable rate framework. We model the continuous vibration signal from one person's heart at the $(\si)$th sensor as a sequence of similar waveforms beginning at unknown and quasi-regular points in time. The start time of the $(\cpi)$th beat is denoted $\hbst{\cpi}$, and a discretely-sampled template of the corresponding waveform $\hbwf{\si,\cpi}$. The latent continuous time signal is then written as,
+We first consider a simple case: one person in the bed and no disturbances.
+
+The start time of the $(\cpi)$th beat is denoted $\hbst{\cpi}$. The start of the next beat is assumed to have a shifted gamma distribution with some variable minimum beat duration $\hbmd{\cpi}$. The minimum beat duration is also modelled as gamma distributed with a mean equal to the value from the previous beat. Hence,
+%
+\begin{IEEEeqnarray}{rCl}
+ \cptransden{\hbst{},\hbmd{}}( \hbst{\cpi+1}, \hbmd{\cpi+1} | \hbst{\cpi}, \hbmd{\cpi} ) & = & \gammaden{\hbst{\cpi+1}-\hbst{\cpi}-\hbmd{\cpi}}{\gamshape{\hbst{}}}{\gamscale{\hbst{}}} \gammaden{\hbmd{\cpi+1}}{\frac{\hbmd{\cpi}}{\gamscale{\hbmd{}}}}{\gamscale{\hbmd{}}} \nonumber      ,
+\end{IEEEeqnarray}
+%
+where $\gammaden{x}{a}{b}$ represents a gamma density for $x$ with shape and scale parameters $a$ and $b$ respectively. $\gamshape{\hbst{}}$, $\gamscale{\hbst{}}$ and $\gamscale{\hbmd{}}$ are fixed parameters.
+
+For this model, we have, very simply,
+%
+\begin{IEEEeqnarray}{rCl}
+ \cpt{\cpi} & = & \hbst{\cpi} \nonumber \\
+ \cpp{\cpi} & = & \hbmd{\cpi} \nonumber      .
+\end{IEEEeqnarray}
+
+The latent state is a four-dimensional quantity representing the noise-free vibration signal reaching each of the four sensors. Associated with each heartbeat and each sensor we introduce a waveform template variable $\hbwf{\si,\cpi}$. This is a vector of points parameterising the continuous-time waveform. If the waveform were known a priori, the discrete template could be obtained by sampling it at the same rate as the observations. The signal at some arbitrary time during the beat $\hbst{\cpi} < t \leq \hbst{\cpi+1}$ is then specified deterministically by linear basis-function interpolation between these points,
 %
 \begin{IEEEeqnarray}{rCl}
  \hs{\si}{\ct} & = & \intrp(\hbst{\mrcpi(\ct)},\ct) \cdot \hbwf{\si,\mrcpi(\ct)} \nonumber      ,
 \end{IEEEeqnarray}
 %
-where $\intrp(\hbst{\cpi},\ct)$ is a vector of interpolation factors which allow reconstruction of the continuous waveform from the discrete template. For example, using sinc interpolation,
+where $\hs{\si}{\ct}$ is the $(\si)$th component of $\cls{\ct}$, and $\intrp(\hbst{\cpi},\ct)$ is a vector of interpolation factors. For example, using sinc interpolation,
 %
 \begin{IEEEeqnarray}{rCl}
- \intrp_{i}(\hbst{\mrcpi(\ct)},\ct) & = & \sinc\left( \frac{\ct-\hbst{\mrcpi(\ct)}- i \period}{\period} \right) \nonumber     ,
+ \intrp_{i}(\hbst{\cpi},\ct) & = & \sinc\left( \frac{\ct-\hbst{\cpi}- i \period}{\period} \right) \nonumber     ,
 \end{IEEEeqnarray}
 %
-where $\period$ is the sampling period.
+where $\period$ is the sampling period and $\hbwflen$ is the length of $\hbwf{\si,\cpi}$.
 
-The latent state is the vector of four signals, one for each sensor. Measurements are modelled as noisy observations of the state,
+Measurements are modelled as noisy observations of the latent state,
 %
 \begin{IEEEeqnarray}{rCl}
  \lhood(\ob{\ti} | \cls{\ct}) & = & \normalden{\ob{\ti}}{\cls{\ot{\ti}}}{\obscov} \nonumber      .
 \end{IEEEeqnarray}
 
+Finally, the templates are modelled as a Markovian sequence with Gaussian prior and transition densities,
+%
+\begin{IEEEeqnarray}{rCl}
+ p(\hbwf{\si,0}) & = & \normalden{\hbwf{\si,0}}{0}{\hbwfpriorcov} \nonumber \\
+ p(\hbwf{\si,\cpi}) & = & \normalden{\hbwf{\si,\cpi}}{0}{\hbwftranscov} \nonumber      .
+\end{IEEEeqnarray}
+%
+The prior covariance matrix $\hbwfpriorcov$ is chosen to be diagonal, with very small values at the ends and a larger value in the middle. This reflects our expectation that the waveform should have the greatest amplitude roughly in the middle of the beat. Specifically, we use,
+%
+\begin{IEEEeqnarray}{rCl}
+ \hbwfpriorcov_{i,i} & = & \sigma_{\omega}^2 \times \half \left( 1-\cos\left( \frac{ 2 \pi i }{ \hbwflen+1 } \right) \right)^2 \nonumber      .
+\end{IEEEeqnarray}
+%
+The transition covariance matrix $\hbwftranscov$ is the identity multiplied by a small positive constant.
 
-
-
+By construction, this model is linear and Gaussian conditional on the changepoint sequence. The marginal likelihood required for the particle filter weight evaluation is given by,
+%
+\begin{IEEEeqnarray}{rCl}
+ \lhood(\ob{\ti+1:\ti+\winlen} | \cp{\ti+\winlen}, \ob{1:\ti}) & = & \prod_l \lhood(\ob{\ti+l} | \cp{\ti+\winlen}, \ob{1:\ti+l-1}) \nonumber \\
+ \lhood(\ob{\ti+l} | \cp{\ti+\winlen}, \ob{1:\ti+l-1}) & = & \int \lhood(\ob{\ti+l} | \cp{\ti+\winlen}, \hbwf{\mrcpi{\ti+l}}) \lhood(\hbwf{\mrcpi{\ti+l}} | \cp{\ti+\winlen}, \ob{1:\ti+l-1}) d\hbwf{\mrcpi{\ti+l}} \nonumber      .
+\end{IEEEeqnarray}
+%
+The conditional posterior for the latest waveform template is given by a Kalman filter, in which a prediction step is only conducted if a new heartbeat has begun since the last observation. (Technically, the number of prediction steps conducted should be equal to the number of changepoints since the last observation, but practically this will be $1$ at most.)
+%
+\begin{IEEEeqnarray}{rCl}
+ p(\hbwf{\mrcpi{\ti}} | \cp{\ti}, \ob{1:\ti}) & = & \normalden{\hbwf{\mrcpi{\ti}}}{\hbwfmn{\ti}}{\hbwfvr{\ti}} \nonumber \\
+ p(\hbwf{\mrcpi{\ti}} | \cp{\ti}, \ob{1:\ti-1}) & = & \normalden{\hbwf{\mrcpi{\ti}}}{\hbwfpredmn{\ti}}{\hbwfpredvr{\ti}} \nonumber      .
+\end{IEEEeqnarray}
+%
+Thus we have,
+%
+\begin{IEEEeqnarray}{rCl}
+ \lhood(\ob{\ti+1:\ti+\winlen} | \cp{\ti+\winlen}, \ob{1:\ti}) & = & \prod_l \normalden{\ob{\ti+l}}{}{}
+ 
+ 
+ \lhood(\ob{\ti+l} | \cp{\ti+\winlen}, \ob{1:\ti+l-1}) \nonumber \\
+ \lhood(\ob{\ti+l} | \cp{\ti+\winlen}, \ob{1:\ti+l-1}) & = & \int \lhood(\ob{\ti+l} | \cp{\ti+\winlen}, \hbwf{\mrcpi{\ti+l}}) \lhood(\hbwf{\mrcpi{\ti+l}} | \cp{\ti+\winlen}, \ob{1:\ti+l-1}) d\hbwf{\mrcpi{\ti+l}} \nonumber      .
+\end{IEEEeqnarray}
 
 
 \subsection{Modelling Heartbeat Combinations}
