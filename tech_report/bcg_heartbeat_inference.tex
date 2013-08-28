@@ -128,7 +128,7 @@ In our BCG models, the latent state evolution is governed by the changepoint seq
 Conditional upon the changepoint sequence, the state is a deterministic linear function of the most recent auxiliary variable,
 %
 \begin{IEEEeqnarray}{rCl}
- \cls{\ct} & = & \transfun\left( \cpt{0:\mrcpi(\ct)}, \cpp{0:\mrcpi(\ct)}, \ct \right) \cplp{\mrcpi(\ct)} \nonumber      .
+ \cls{\ct} & = & \transfun(\ct) \cplp{\mrcpi(\ct)} \nonumber      .
 \end{IEEEeqnarray}
 
 Finally, the dependence of the observations on the latent state is also linear and Gaussian,
@@ -137,7 +137,9 @@ Finally, the dependence of the observations on the latent state is also linear a
  \lhood(\ob{\ti} | \cls{\ot{\ti}}) & = & \normalden{\ob{\ti}}{\obsmat \cls{\ot{\ti}}}{\obscov} \nonumber      .
 \end{IEEEeqnarray}
 
-Variable rate models with this structure were studied in \citep{Morelande2009a}.
+The matrixes $\obsmat$, $\obscov$, $\cplptransmat$, $\cplptranscov$ may all be functions of $\cpt{0:\mrcpi_{\ti}}, \cpp{0:\mrcpi_{\ti}}$, and $\transfun(\ct)$ may be a function of $\cpt{0:\mrcpi(\ct)}, \cpp{0:\mrcpi(\ct)}$, but this is suppressed above for clarity.
+
+Variable rate models with a similar structure were studied in \citep{Morelande2009a}.
 
 
 
@@ -286,8 +288,7 @@ With these choices we have,
  \pw{\ti}\pss{i} & \propto & \frac{ \lhood(\ob{\ti+1:\ti+\winlen} | \cp{\ti}\pss{i}, \repcp[\ti]{\ti+\winlen}\pss{i}, \ob{1:\ti}) }{ \lhood(\ob{\ti+1:\ti-\blocklen+\winlen} | \cp{\ti-\blocklen+\winlen}\pss{i}, \ob{1:\ti}) } \nonumber       .
 \end{IEEEeqnarray}
 
-For the heartbeat inference problem investigated in this paper a simple but effective modification to this basic proposal is possible.
-{\meta Describe the propose-and-shift proposal method.}
+An improved proposal method tailored to the heartbeat models is discussed in section~\ref{}{\meta Add ref.}
 
 
 
@@ -321,7 +322,7 @@ The latent state is a four-dimensional quantity representing the noise-free vibr
  \hs{\si}{\ct} & = & \intrp(\hbst{\mrcpi(\ct)},\ct) \cdot \hbwf{\si,\mrcpi(\ct)} \nonumber      ,
 \end{IEEEeqnarray}
 %
-where $\hs{\si}{\ct}$ is the $(\si)$th component of $\cls{\ct}$, and $\intrp(\hbst{\cpi},\ct)$ is a vector of interpolation factors. For example, using sinc interpolation,
+where $\hs{\si}{\ct}$ is the $(\si)$th component of $\hs{}{\ct}$, and $\intrp(\hbst{\cpi},\ct)$ is a vector of interpolation factors. For example, using sinc interpolation,
 %
 \begin{IEEEeqnarray}{rCl}
  \intrp_{i}(\hbst{\cpi},\ct) & = & \sinc\left( \frac{\ct-\hbst{\cpi}- i \period}{\period} \right) \nonumber     ,
@@ -330,23 +331,16 @@ where $\hs{\si}{\ct}$ is the $(\si)$th component of $\cls{\ct}$, and $\intrp(\hb
 where $\period$ is the sampling period and $\hbwflen$ is the length of $\hbwf{\si,\cpi}$. Concatenating the state components, we have,
 %
 \begin{IEEEeqnarray}{rCl}
- \cls{\ct} & = & \underbrace{\begin{bmatrix} \intrp(\hbst{\mrcpi(\ct)},\ct)^T & 0 & 0 & 0 \\ 0 & \intrp(\hbst{\mrcpi(\ct)},\ct)^T & 0 & 0 \\ 0 & 0 & \intrp(\hbst{\mrcpi(\ct)},\ct)^T & 0 \\ 0 & 0 & 0 & \intrp(\hbst{\mrcpi(\ct)},\ct)^T \end{bmatrix}}_{ \intrpmat\left(\hbst{\mrcpi(\ct)},\ct\right) } \underbrace{\begin{bmatrix} \hbwf{1,\mrcpi(\ct)} \\ \hbwf{2,\mrcpi(\ct)} \\ \hbwf{3,\mrcpi(\ct)} \\ \hbwf{4,\mrcpi(\ct)} \end{bmatrix}}_{\hbwf{\mrcpi(\ct)}} \nonumber      .
+ \hs{}{\ct} & = & \underbrace{\begin{bmatrix} \intrp(\hbst{\mrcpi(\ct)},\ct)^T & 0 & 0 & 0 \\ 0 & \intrp(\hbst{\mrcpi(\ct)},\ct)^T & 0 & 0 \\ 0 & 0 & \intrp(\hbst{\mrcpi(\ct)},\ct)^T & 0 \\ 0 & 0 & 0 & \intrp(\hbst{\mrcpi(\ct)},\ct)^T \end{bmatrix}}_{ \intrpmat\left(\hbst{\mrcpi(\ct)},\ct\right) } \underbrace{\begin{bmatrix} \hbwf{1,\mrcpi(\ct)} \\ \hbwf{2,\mrcpi(\ct)} \\ \hbwf{3,\mrcpi(\ct)} \\ \hbwf{4,\mrcpi(\ct)} \end{bmatrix}}_{\hbwf{\mrcpi(\ct)}} \nonumber      .
 \end{IEEEeqnarray}
 
-Finally, measurements are modelled as noisy observations of the latent state, and the heartbeat waveform templates as a Markovian sequence with Gaussian prior and transition densities. This model then fits exactly into the framework laid out in section~\ref{}{\meta Add ref.}, with the following correspondence,
-%
-
-
-
-
-
-Measurements are modelled as noisy observations of the latent state,
+Measurements are denoted $\ob{\ti}$ (as in the general framework) and are modelled as noisy observations of the heartbeat signal,
 %
 \begin{IEEEeqnarray}{rCl}
- \lhood(\ob{\ti} | \cls{\ot{\ti}}) & = & \normalden{\ob{\ti}}{\cls{\ot{\ti}}}{\hbobscov} \nonumber      .
+ \lhood(\ob{\ti} | \hs{}{\ot{\ti}}) & = & \normalden{\ob{\ti}}{\hs{}{\ot{\ti}}}{\hbobscov} \nonumber      .
 \end{IEEEeqnarray}
 
-Finally, the templates are modelled as a Markovian sequence with Gaussian prior and transition densities,
+Finally, heartbeat waveform templates are modelled as a Markovian sequence with Gaussian prior and transition densities.
 %
 \begin{IEEEeqnarray}{rCl}
  p(\hbwf{\si,0}) & = & \normalden{\hbwf{\si,0}}{0}{\hbwfpriorcov} \nonumber \\
@@ -361,38 +355,15 @@ The prior covariance matrix $\hbwfpriorcov$ is chosen to be diagonal, with very 
 %
 The transition covariance matrix $\hbwftranscov$ is the identity multiplied by a small positive constant.
 
-By construction, this model is linear and Gaussian conditional on the changepoint sequence. The marginal likelihood required for the particle filter weight evaluation is given by,
-%
-\begin{IEEEeqnarray}{rCl}
- \lhood(\ob{\ti+1:\ti+\winlen} | \cp{\ti+\winlen}, \ob{1:\ti}) & = & \prod_l \lhood(\ob{\ti+l} | \cp{\ti+\winlen}, \ob{1:\ti+l-1}) \nonumber \\
- \lhood(\ob{\ti+l} | \cp{\ti+\winlen}, \ob{1:\ti+l-1}) & = & \int \lhood(\ob{\ti+l} | \cp{\ti+\winlen}, \hbwf{\mrcpi{\ti+l}}) \lhood(\hbwf{\mrcpi{\ti+l}} | \cp{\ti+\winlen}, \ob{1:\ti+l-1}) d\hbwf{\mrcpi{\ti+l}} \nonumber      .
-\end{IEEEeqnarray}
-%
-The conditional posterior for the latest waveform template is a Gaussian distribution whose parameters may be calculated recursively using a Kalman filter, in which a prediction step is only conducted if a new heartbeat has begun since the last observation. (Technically, the number of prediction steps conducted should be equal to the number of changepoints since the last observation, but practically this will be $1$ at most.)
-%
-\begin{IEEEeqnarray}{rCl}
- p(\hbwf{\mrcpi{\ti}} | \cp{\ti}, \ob{1:\ti}) & = & \normalden{\hbwf{\mrcpi{\ti}}}{\hbwfmn{\ti}}{\hbwfvr{\ti}} \nonumber \\
- p(\hbwf{\mrcpi{\ti}} | \cp{\ti}, \ob{1:\ti-1}) & = & \normalden{\hbwf{\mrcpi{\ti}}}{\hbwfpredmn{\ti}}{\hbwfpredvr{\ti}} \nonumber      .
-\end{IEEEeqnarray}
-%
-Thus we have,
-%
-\begin{IEEEeqnarray}{rCl}
- \lhood(\ob{\ti+1:\ti+\winlen} | \cp{\ti+\winlen}, \ob{1:\ti}) & = & \prod_l \normalden{\ob{\ti+l}}{ \intrpmat(\hbst{\mrcpi_{\ti+l}},\ot{\ti}) \hbwfpredmn{\ti+l} }{ \hbwfpredvr{\ti+l} } \nonumber      .
-\end{IEEEeqnarray}
-%
-This completes the model specification required to implement a variable rate particle filter for heartbeat inference.
-
-
-
-
-
-For this model, we have, very simply,
+This model fits exactly into the framework laid out in section~\ref{}{\meta Add ref.}, with the following correspondence,
 %
 \begin{IEEEeqnarray}{rCl}
  \cpt{\cpi} & = & \hbst{\cpi} \nonumber \\
- \cpp{\cpi} & = & \hbmd{\cpi} \nonumber      .
+ \cpp{\cpi} & = & \hbmd{\cpi} \nonumber \\
+ \cplp{\cpi} & = & \hbwf{\cpi} \nonumber \\
+ \cls{\ct} & = & \hs{}{\ct} \nonumber       .
 \end{IEEEeqnarray}
+
 
 
 \subsection{Variations on the Basic Model}
@@ -405,14 +376,19 @@ If only a short section of data is to be studied, then it may be valid to assume
  p(\hbwf{\si}) & = & \normalden{\hbwf{\si}}{0}{\hbwfpriorcov} \nonumber       .
 \end{IEEEeqnarray}
 %
-The algorithm proceeds as before except that all Kalman filter prediction steps are omitted when calculating the waveform template conditional posterior distributions.
+The algorithm proceeds as before except that all Kalman filter prediction steps are omitted when calculating the waveform template conditional posterior distributions. With this modification, we now have,
+%
+\begin{IEEEeqnarray}{rCl}
+ \cplp{\cpi} & = & \hbwf{} \nonumber      .
+\end{IEEEeqnarray}
 
 \subsubsection{A Smoother Likelihood Function}
 
 As formulated, the observation density for the $(\ti)$th observation is not a smooth function of the changepoint sequence; it contains a jump at the point $\ot{\ti}=\cpt{\mrcpi{\ti}}$, as the observation is shifted from one heartbeat to the next. This is problematic for gradient ascent algorithms seeking a peak in the likelihood function. To alleviate this problem, we use a window function to smoothly taper between the heartbeats,
 %
 \begin{IEEEeqnarray}{rCl}
- \hs{\si}{\ct} & = & \begin{cases} \window\left(\frac{\ct-\cpt{\mrcpi(\ct)}}{\period}\right) \intrp(\hbst{\mrcpi(\ct)},\ct) \cdot \hbwf{\si,\mrcpi(\ct)} + \left[1-\window\left(\frac{\ct-\cpt{\mrcpi(\ct)}}{\period}\right)\right] \intrp(\hbst{\mrcpi(\ct)-1},\ct) \cdot \hbwf{\si,\mrcpi(\ct)-1} & \cpt{\mrcpi(\ct)} < \ct \leq \cpt{\mrcpi(\ct)} + \period \\
+ \hs{\si}{\ct} & = & \begin{cases} \left[1-\window\left(\frac{\ct-\cpt{\mrcpi(\ct)}}{\period}\right)\right] \intrp(\hbst{\mrcpi(\ct)-1},\ct) \cdot \hbwf{\si,\mrcpi(\ct)-1} & \\
+ \qquad  + \window\left(\frac{\ct-\cpt{\mrcpi(\ct)}}{\period}\right) \intrp(\hbst{\mrcpi(\ct)},\ct) \cdot \hbwf{\si,\mrcpi(\ct)} & \cpt{\mrcpi(\ct)} < \ct \leq \cpt{\mrcpi(\ct)} + \period \\
  \intrp(\hbst{\mrcpi(\ct)},\ct) \cdot \hbwf{\si,\mrcpi(\ct)} & \cpt{\mrcpi(\ct)} + \period < \ct < \cpt{\mrcpi(\ct)+1}
  \end{cases} \nonumber      ,
 \end{IEEEeqnarray}
@@ -423,14 +399,44 @@ where $\window(\ct)$ is a monotonically non-decreasing function with $\window(0)
  \window(t) & = & \half\left[1 - \cos(\pi t)\right] \nonumber      .
 \end{IEEEeqnarray}
 
+Because of the overlap between the heartbeats, the latent state may now depend on the preceding two heartbeat waveforms. Therefore, in order for this model to adhere to the framework set out in section~\ref{}{\meta Add ref.}, we now use,
+%
+\begin{IEEEeqnarray}{rCl}
+ \cplp{\cpi} & = & \begin{bmatrix} \hbwf{\cpi} \\ \hbwf{\cpi-1} \end{bmatrix} \nonumber      ,
+\end{IEEEeqnarray}
+%
+along with the obvious augmentation of the interpolation matrix $\transfun$.
+
+
+
 \subsection{Modelling Heartbeat Combinations}
+
+When there are two people sleeping in the bed, the heartbeat signals are treated as independent a priori. (An interesting question is whether this assumption is valid --- will heartbeat rhythms ever ``sync up''?) Thus, we have two sequences of heartbeat start times, minimum durations and waveform templates,
+%
+\begin{IEEEeqnarray}{rCl}
+ \left\{ \hbst[\peri]{\cpi}, \hbmd[\peri]{\cpi}, \hbwf[\peri]{\cpi} \right\} \: \peri=1,2 \nonumber      ,
+\end{IEEEeqnarray}
+%
+and also two noise-free heartbeat signals $\hs[\peri]{}{\ct} \: \peri=1,2$ each determined by its respective sequence by \eqref{} or \eqref{}{\meta Add refs}. The measurements are modelled as noisy observations of the sum of these signals. Thus, we now have,
+%
+\begin{IEEEeqnarray}{rClCrCl}
+ \cpt{\cpi} & = & \begin{bmatrix} \hbst[1]{\cpi} \\ \hbst[2]{\cpi} \end{bmatrix} & \qquad & \cpp{\cpi} & = & \begin{bmatrix} \hbmd[1]{\cpi} \\ \hbmd[2]{\cpi} \end{bmatrix} \nonumber \\
+  \nonumber \\
+ \cplp{\cpi} & = & \begin{bmatrix} \hbwf[1]{\cpi} \\ \hbwf[2]{\cpi} \end{bmatrix} & \qquad & \cls{\ct} & = & \hs[1]{}{\ct} + \hs[2]{}{\ct} \nonumber       .
+\end{IEEEeqnarray}
+
 
 
 
 \subsection{Modelling Clutter and Interference}
 
+\subsection{Sampling Changepoint Sequences}
+
+For the heartbeat inference problem investigated in this paper a simple but effective modification to this basic proposal is possible. Because the observations are highly informative (high dimension and low noise), it is vital to propose heartbeat sequences close to peaks in the likelihood. {\meta Graph.}
 
 
+
+\subsection{Initialising the Algorithm}
 
 
 

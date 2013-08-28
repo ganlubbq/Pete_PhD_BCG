@@ -2,6 +2,7 @@
 
 % Functions and operators
 \newcommand{\half}{\frac{1}{2}}                                 % Half
+\DeclareMathOperator{\sinc}{sinc}                               % Sinc
 \DeclareMathOperator{\trace}{Tr}                                % Trace
 \newcommand{\expect}[1]{\mathbb{E}_{#1}}                        % Expectation
 \newcommand{\variance}[1]{\mathbb{V}_{#1}}                      % Variance
@@ -79,24 +80,20 @@
 \newcommand{\blocklen}{B}                       % Block length
 
 % Heartbeat model
-\DeclareMathOperator{\sinc}{sinc}               % Sinc
 \newcommand{\period}{\Delta}                    % Sampling period
-\newcommand{\hbst}[1]{b_{#1}}                   % Heartbeat start time
-\newcommand{\hbmd}[1]{\lambda_{#1}}             % Heartbeat minimum duration
-%\newcommand{\hbwf}[2][]{\omega_{#1}^{[#2]}}         % Heartbeat waveform (person in the superscript, sensor,index in the subscript)
-\newcommand{\hbwf}[2][]{\ifstrempty{#1}{\omega_{#2}}{\omega_{#2}^{[#1]}}}             % Heartbeat waveform (person in the superscript, sensor,index in the subscript)
+\newcommand{\hbst}[2][]{\ifstrempty{#1}{b_{#2}}{b_{#2}^{[#1]}}}                 % Heartbeat start time
+\newcommand{\hbmd}[2][]{\ifstrempty{#1}{\lambda_{#2}}{\lambda_{#2}^{[#1]}}}     % Heartbeat minimum duration 
+\newcommand{\hbwf}[2][]{\ifstrempty{#1}{\omega_{#2}}{\omega_{#2}^{[#1]}}}       % Heartbeat waveform 
+\newcommand{\hs}[3][]{\ifstrempty{#1}{\zeta_{#2}(#3)}{\zeta_{#2}^{[#1]}(#3)}}  % Heartbeat signal
 \newcommand{\hbwflen}{D}                        % Length of heartbeat waveform
-\newcommand{\hs}[2]{\zeta_{#1}(#2)}                 % Heartbeat signal
-\newcommand{\intrp}[1][]{\ifstrempty{#1}{h}{h^{[#1]}}}                  % Interpolation factor
-\newcommand{\intrpmat}{H}                  % Interpolation factor
-%\newcommand{\wfi}{m}                            % Waveform index
+\newcommand{\intrp}[1][]{f}                     % Interpolation factor
+\newcommand{\intrpmat}{F}                       % Interpolation factor
+%\newcommand{\wfi}{m}                           % Waveform index
 \newcommand{\si}{s}                             % Sensor index
 \newcommand{\peri}{p}                           % Person index
-\newcommand{\hbwfpriorcov}{P}                 % Waveform prior covariance
-\newcommand{\hbwftranscov}{Q}                 % Waveform transition covariance
-\newcommand{\hbobscov}[1][]{\sigma_y^2 I}                 % Observation covariance
+\newcommand{\hbwfpriorcov}{P}                   % Waveform prior covariance
+\newcommand{\hbwftranscov}{Q}                   % Waveform transition covariance
+\newcommand{\hbobscov}[1][]{\sigma_y^2 I}       % Observation covariance
 \newcommand{\hbwfmn}[1]{m_{#1}}                 % Heartbeat waveform mean
 \newcommand{\hbwfvr}[1]{P_{#1}}                 % Heartbeat waveform variance
-\newcommand{\hbwfpredmn}[1]{\hat{m}_{#1}}                 % Heartbeat waveform predicted mean
-\newcommand{\hbwfpredvr}[1]{\hat{P}_{#1}}                 % Heartbeat waveform predicted variance 
 \newcommand{\window}{\phi}                      % Window function for likelihood function
