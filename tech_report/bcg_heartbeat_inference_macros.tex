@@ -58,13 +58,21 @@
 \newcommand{\cppspace}{\mathbb{U}}             % Space for a changepoint
 
 % Generic model features
-\newcommand{\transfun}{f}                       % Deterministic transition function
-\newcommand{\rbtransmat}{A}                     % Parameter transition matrix for Rao-Blackwellisable models
-\newcommand{\rbtranscov}{Q}                     % Parameter covariance matrix for Rao-Blackwellisable models
+\newcommand{\transfun}{F}                       % Deterministic transition function
+\newcommand{\cplppriormn}{m_0}
+\newcommand{\cplppriorvr}{P_0}
+\newcommand{\cplptransmat}{A}                     % Parameter transition matrix for Rao-Blackwellisable models
+\newcommand{\cplptranscov}{Q}                     % Parameter covariance matrix for Rao-Blackwellisable models
 \newcommand{\obsmat}{H}                         % Observation matrix
-\newcommand{\rbobscov}{R}                         % Observation covariance matrix 
+\newcommand{\obscov}{R}                         % Observation covariance matrix
 \newcommand{\gamshape}[1]{a_{#1}}               % Gamma density shape (for both beat times and minimum durations)
 \newcommand{\gamscale}[1]{b_{#1}}               % Gamma density shape (for both beat times and minimum durations)
+
+% Generic algorithm features
+\newcommand{\cplpmn}[1]{m_{#1}}                 % Heartbeat waveform mean
+\newcommand{\cplpvr}[1]{P_{#1}}                 % Heartbeat waveform variance
+\newcommand{\cplppredmn}[1]{\hat{m}_{#1}}                 % Heartbeat waveform predicted mean
+\newcommand{\cplppredvr}[1]{\hat{P}_{#1}}                 % Heartbeat waveform predicted variance 
 
 % Block filtering variables
 \newcommand{\winlen}{L}                         % Window length
@@ -78,15 +86,17 @@
 %\newcommand{\hbwf}[2][]{\omega_{#1}^{[#2]}}         % Heartbeat waveform (person in the superscript, sensor,index in the subscript)
 \newcommand{\hbwf}[2][]{\ifstrempty{#1}{\omega_{#2}}{\omega_{#2}^{[#1]}}}             % Heartbeat waveform (person in the superscript, sensor,index in the subscript)
 \newcommand{\hbwflen}{D}                        % Length of heartbeat waveform
-\newcommand{\hs}[2]{x_{#1}(#2)}                 % Heartbeat signal
+\newcommand{\hs}[2]{\zeta_{#1}(#2)}                 % Heartbeat signal
 \newcommand{\intrp}[1][]{\ifstrempty{#1}{h}{h^{[#1]}}}                  % Interpolation factor
+\newcommand{\intrpmat}{H}                  % Interpolation factor
 %\newcommand{\wfi}{m}                            % Waveform index
 \newcommand{\si}{s}                             % Sensor index
 \newcommand{\peri}{p}                           % Person index
 \newcommand{\hbwfpriorcov}{P}                 % Waveform prior covariance
 \newcommand{\hbwftranscov}{Q}                 % Waveform transition covariance
-\newcommand{\obscov}[1][]{\sigma_y^2 I}                 % Observation covariance
+\newcommand{\hbobscov}[1][]{\sigma_y^2 I}                 % Observation covariance
 \newcommand{\hbwfmn}[1]{m_{#1}}                 % Heartbeat waveform mean
 \newcommand{\hbwfvr}[1]{P_{#1}}                 % Heartbeat waveform variance
 \newcommand{\hbwfpredmn}[1]{\hat{m}_{#1}}                 % Heartbeat waveform predicted mean
-\newcommand{\hbwfpredvr}[1]{\hat{P}_{#1}}                 % Heartbeat waveform predicted variance
+\newcommand{\hbwfpredvr}[1]{\hat{P}_{#1}}                 % Heartbeat waveform predicted variance 
+\newcommand{\window}{\phi}                      % Window function for likelihood function

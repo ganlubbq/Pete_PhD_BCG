@@ -112,12 +112,40 @@ and hence the sequence transition density is,
  & = & \frac{ \survfunc{\cpt{0:\mrcpi_{\ti_2}}}{\cpp{0:\mrcpi_{\ti_2}}}{\ot{\ti_2}} }{ \survfunc{\cpt{0:\mrcpi_{\ti_1}}}{\cpp{0:\mrcpi_{\ti_1}}}{\ot{\ti_1}} } \prod_{\cpi=\mrcpi_{\ti_1}+1}^{\mrcpi_{\ti_2}} \cptransden{\cpt{},\cpp{}}(\cpt{\cpi}, \cpp{\cpi} | \cpt{0:\cpi-1}, \cpp{0:\cpi-1}) \nonumber      .
 \end{IEEEeqnarray}
 
-The latent state is a continuous-time process denoted $\cls{\ct} \in \lsspace$ which evolves according to some benign dynamics conditional upon the changepoint sequence. In this paper we consider only one of the many possibilities for these dynamics, which is introduced in the specific context of the balistocardiography models.
 
 
+\subsection{State Dynamics and Observation Likelihoods}
 
-%\subsection{State Dynamics and Observation Likelihoods}
+The latent state is a continuous-time process denoted $\cls{\ct} \in \lsspace$ which evolves according to some benign dynamics conditional upon the changepoint sequence. In this paper we consider only one of several possible classes of state dynamics which encompasses the various balistocardiography models introduced.
+
+In our BCG models, the latent state evolution is governed by the changepoint sequence alongside an additional set of auxiliary variables. There will be one auxiliary variable $\cplp{\cpi}$ corresponding to each changepoint time $\cpt{\cpi}$. This new variable is distinguished from the existing changepoint parameter by the fact that it evolves according to a linear Gauss-Markov model,
 %
+\begin{IEEEeqnarray}{rCl}
+ \cptransden{\cplp{}}(\cplp{\cpi} | \cpt{0:\cpi}, \cpp{0:\cpi}, \cplp{0:\cpi-1}) & = & \normalden{\cplp{\cpi}}{\cplptransmat \cplp{\cpi}}{\cplptranscov} \nonumber \\
+  \cptransden{\cplp{}}(\cplp{0}) & = & \normalden{\cplp{\cpi}}{\cplpmn{0}}{\cplpvr{0}} \nonumber      ,
+\end{IEEEeqnarray}
+
+Conditional upon the changepoint sequence, the state is a deterministic linear function of the most recent auxiliary variable,
+%
+\begin{IEEEeqnarray}{rCl}
+ \cls{\ct} & = & \transfun\left( \cpt{0:\mrcpi(\ct)}, \cpp{0:\mrcpi(\ct)}, \ct \right) \cplp{\mrcpi(\ct)} \nonumber      .
+\end{IEEEeqnarray}
+
+Finally, the dependence of the observations on the latent state is also linear and Gaussian,
+%
+\begin{IEEEeqnarray}{rCl}
+ \lhood(\ob{\ti} | \cls{\ot{\ti}}) & = & \normalden{\ob{\ti}}{\obsmat \cls{\ot{\ti}}}{\obscov} \nonumber      .
+\end{IEEEeqnarray}
+
+Variable rate models with this structure were studied in \citep{Morelande2009a}.
+
+
+
+
+
+
+
+
 %The state is modelled as a evolving deterministically conditional upon the changepoint sequence and an additional linear changepoint parameter
 %
 % the state dynamical models which we study are conditionally deterministic, i.e. the state is precisely determined by the sequence of changepoints and a starting point, $\cls{\cpt{0}}=\ls{0}$, with no additional random components. A state transition function may then be written,
@@ -220,7 +248,32 @@ Having completed the importance sampling, the overlapping portion of each old se
  \cp{\ti+\winlen}\pss{i} \leftarrow \left\{ \cp{\ti}\pss{i}, \cp[\ti]{\ti+\winlen}\pss{i} \right\} \nonumber       .
 \end{IEEEeqnarray}
 
-A valid algorithm results whatever choice is made for $\artden{\ti}{\ti-\blocklen+\winlen}$, but some will lead to desirable lower variances of the importance weights. Although far from optimal, our first experiments will use the simplest options for both the importance and extension distributions, the transition densities for the respective sequences,
+A valid algorithm results whatever choice is made for $\artden{\ti}{\ti-\blocklen+\winlen}$, but some will lead to desirable lower variances of the importance weights. 
+
+\subsection{Evaluating the Likelihood}
+
+For our particular auxiliary variable, conditionally-deterministic state dynamics, the model for the auxiliary variables is linear-Gaussian and Markovian when conditioned on the changepoint sequence. The conditional posterior distribution is thus Gaussian, and the parameters may be calculated analytically with a Kalman filter,
+%
+\begin{IEEEeqnarray}{rCl}
+ p(\cplp{\mrcpi{\ti}} | \cp{\ti}, \ob{1:\ti}) & = & \normalden{\cplp{\mrcpi{\ti}}}{\cplpmn{\ti}}{\cplpvr{\ti}} \nonumber \\
+ p(\cplp{\mrcpi{\ti}} | \cp{\ti}, \ob{1:\ti-1}) & = & \normalden{\cplp{\mrcpi{\ti}}}{\cplppredmn{\ti}}{\cplppredvr{\ti}} \nonumber      .
+\end{IEEEeqnarray}
+%
+When progressing the Kalman filter from $\ot{\ti}$ to $\ot{\ti+1}$, a variable number of prediction steps occur, one for each changepoint present in the interval (which, in practice, will be either $0$ or $1$).
+
+Using the Kalman filter moments, the marginal likelihood term required for the particle filter weight evaluation is given by,
+%
+\begin{IEEEeqnarray}{rCl}
+ \lhood(\ob{\ti+1:\ti+\winlen} | \cp{\ti+\winlen}, \ob{1:\ti}) & = & \prod_l \lhood(\ob{\ti+l} | \cp{\ti+\winlen}, \ob{1:\ti+l-1}) \nonumber \\
+ \lhood(\ob{\ti+l} | \cp{\ti+\winlen}, \ob{1:\ti+l-1}) & = & \int \lhood(\ob{\ti+l} | \cp{\ti+\winlen}, \cplp{\mrcpi{\ti+l}}) \lhood(\cplp{\mrcpi{\ti+l}} | \cp{\ti+\winlen}, \ob{1:\ti+l-1}) d\cplp{\mrcpi{\ti+l}} \nonumber \\
+ & = & \normalden{\ob{\ti+l}}{ \obsmat \transfun \cplppredmn{\ti+l} }{ \obsmat \transfun \cplppredvr{\ti+l} \transfun ^T\obsmat^T + \obscov } \nonumber      .
+\end{IEEEeqnarray}
+
+
+
+\subsection{Importance and Extension Distributions}
+
+Although far from optimal, our first experiments will use the simplest options for both the importance and extension distributions, the transition densities for the respective sequences,
 %
 \begin{IEEEeqnarray}{rCl}
  \impden{\ti}{\ti+\winlen}(\repcp[\ti]{\ti+\winlen} | \cp{\ti-\blocklen+\winlen}) & = & \cptransden{\cp{}}(\repcp[\ti]{\ti+\winlen} | \cp{\ti}) \nonumber \\
@@ -262,13 +315,6 @@ The start time of the $(\cpi)$th beat is denoted $\hbst{\cpi}$. The start of the
 %
 where $\gammaden{x}{a}{b}$ represents a gamma density for $x$ with shape and scale parameters $a$ and $b$ respectively. $\gamshape{\hbst{}}$, $\gamscale{\hbst{}}$ and $\gamscale{\hbmd{}}$ are fixed parameters.
 
-For this model, we have, very simply,
-%
-\begin{IEEEeqnarray}{rCl}
- \cpt{\cpi} & = & \hbst{\cpi} \nonumber \\
- \cpp{\cpi} & = & \hbmd{\cpi} \nonumber      .
-\end{IEEEeqnarray}
-
 The latent state is a four-dimensional quantity representing the noise-free vibration signal reaching each of the four sensors. Associated with each heartbeat and each sensor we introduce a waveform template variable $\hbwf{\si,\cpi}$. This is a vector of points parameterising the continuous-time waveform. If the waveform were known a priori, the discrete template could be obtained by sampling it at the same rate as the observations. The signal at some arbitrary time during the beat $\hbst{\cpi} < t \leq \hbst{\cpi+1}$ is then specified deterministically by linear basis-function interpolation between these points,
 %
 \begin{IEEEeqnarray}{rCl}
@@ -281,19 +327,30 @@ where $\hs{\si}{\ct}$ is the $(\si)$th component of $\cls{\ct}$, and $\intrp(\hb
  \intrp_{i}(\hbst{\cpi},\ct) & = & \sinc\left( \frac{\ct-\hbst{\cpi}- i \period}{\period} \right) \nonumber     ,
 \end{IEEEeqnarray}
 %
-where $\period$ is the sampling period and $\hbwflen$ is the length of $\hbwf{\si,\cpi}$.
+where $\period$ is the sampling period and $\hbwflen$ is the length of $\hbwf{\si,\cpi}$. Concatenating the state components, we have,
+%
+\begin{IEEEeqnarray}{rCl}
+ \cls{\ct} & = & \underbrace{\begin{bmatrix} \intrp(\hbst{\mrcpi(\ct)},\ct)^T & 0 & 0 & 0 \\ 0 & \intrp(\hbst{\mrcpi(\ct)},\ct)^T & 0 & 0 \\ 0 & 0 & \intrp(\hbst{\mrcpi(\ct)},\ct)^T & 0 \\ 0 & 0 & 0 & \intrp(\hbst{\mrcpi(\ct)},\ct)^T \end{bmatrix}}_{ \intrpmat\left(\hbst{\mrcpi(\ct)},\ct\right) } \underbrace{\begin{bmatrix} \hbwf{1,\mrcpi(\ct)} \\ \hbwf{2,\mrcpi(\ct)} \\ \hbwf{3,\mrcpi(\ct)} \\ \hbwf{4,\mrcpi(\ct)} \end{bmatrix}}_{\hbwf{\mrcpi(\ct)}} \nonumber      .
+\end{IEEEeqnarray}
+
+Finally, measurements are modelled as noisy observations of the latent state, and the heartbeat waveform templates as a Markovian sequence with Gaussian prior and transition densities. This model then fits exactly into the framework laid out in section~\ref{}{\meta Add ref.}, with the following correspondence,
+%
+
+
+
+
 
 Measurements are modelled as noisy observations of the latent state,
 %
 \begin{IEEEeqnarray}{rCl}
- \lhood(\ob{\ti} | \cls{\ct}) & = & \normalden{\ob{\ti}}{\cls{\ot{\ti}}}{\obscov} \nonumber      .
+ \lhood(\ob{\ti} | \cls{\ot{\ti}}) & = & \normalden{\ob{\ti}}{\cls{\ot{\ti}}}{\hbobscov} \nonumber      .
 \end{IEEEeqnarray}
 
 Finally, the templates are modelled as a Markovian sequence with Gaussian prior and transition densities,
 %
 \begin{IEEEeqnarray}{rCl}
  p(\hbwf{\si,0}) & = & \normalden{\hbwf{\si,0}}{0}{\hbwfpriorcov} \nonumber \\
- p(\hbwf{\si,\cpi}) & = & \normalden{\hbwf{\si,\cpi}}{0}{\hbwftranscov} \nonumber      .
+ p(\hbwf{\si,\cpi} | \hbwf{\si,\cpi-1}) & = & \normalden{\hbwf{\si,\cpi}}{\hbwf{\si,\cpi-1}}{\hbwftranscov} \nonumber      .
 \end{IEEEeqnarray}
 %
 The prior covariance matrix $\hbwfpriorcov$ is chosen to be diagonal, with very small values at the ends and a larger value in the middle. This reflects our expectation that the waveform should have the greatest amplitude roughly in the middle of the beat. Specifically, we use,
@@ -311,7 +368,7 @@ By construction, this model is linear and Gaussian conditional on the changepoin
  \lhood(\ob{\ti+l} | \cp{\ti+\winlen}, \ob{1:\ti+l-1}) & = & \int \lhood(\ob{\ti+l} | \cp{\ti+\winlen}, \hbwf{\mrcpi{\ti+l}}) \lhood(\hbwf{\mrcpi{\ti+l}} | \cp{\ti+\winlen}, \ob{1:\ti+l-1}) d\hbwf{\mrcpi{\ti+l}} \nonumber      .
 \end{IEEEeqnarray}
 %
-The conditional posterior for the latest waveform template is given by a Kalman filter, in which a prediction step is only conducted if a new heartbeat has begun since the last observation. (Technically, the number of prediction steps conducted should be equal to the number of changepoints since the last observation, but practically this will be $1$ at most.)
+The conditional posterior for the latest waveform template is a Gaussian distribution whose parameters may be calculated recursively using a Kalman filter, in which a prediction step is only conducted if a new heartbeat has begun since the last observation. (Technically, the number of prediction steps conducted should be equal to the number of changepoints since the last observation, but practically this will be $1$ at most.)
 %
 \begin{IEEEeqnarray}{rCl}
  p(\hbwf{\mrcpi{\ti}} | \cp{\ti}, \ob{1:\ti}) & = & \normalden{\hbwf{\mrcpi{\ti}}}{\hbwfmn{\ti}}{\hbwfvr{\ti}} \nonumber \\
@@ -321,15 +378,54 @@ The conditional posterior for the latest waveform template is given by a Kalman 
 Thus we have,
 %
 \begin{IEEEeqnarray}{rCl}
- \lhood(\ob{\ti+1:\ti+\winlen} | \cp{\ti+\winlen}, \ob{1:\ti}) & = & \prod_l \normalden{\ob{\ti+l}}{}{}
- 
- 
- \lhood(\ob{\ti+l} | \cp{\ti+\winlen}, \ob{1:\ti+l-1}) \nonumber \\
- \lhood(\ob{\ti+l} | \cp{\ti+\winlen}, \ob{1:\ti+l-1}) & = & \int \lhood(\ob{\ti+l} | \cp{\ti+\winlen}, \hbwf{\mrcpi{\ti+l}}) \lhood(\hbwf{\mrcpi{\ti+l}} | \cp{\ti+\winlen}, \ob{1:\ti+l-1}) d\hbwf{\mrcpi{\ti+l}} \nonumber      .
+ \lhood(\ob{\ti+1:\ti+\winlen} | \cp{\ti+\winlen}, \ob{1:\ti}) & = & \prod_l \normalden{\ob{\ti+l}}{ \intrpmat(\hbst{\mrcpi_{\ti+l}},\ot{\ti}) \hbwfpredmn{\ti+l} }{ \hbwfpredvr{\ti+l} } \nonumber      .
+\end{IEEEeqnarray}
+%
+This completes the model specification required to implement a variable rate particle filter for heartbeat inference.
+
+
+
+
+
+For this model, we have, very simply,
+%
+\begin{IEEEeqnarray}{rCl}
+ \cpt{\cpi} & = & \hbst{\cpi} \nonumber \\
+ \cpp{\cpi} & = & \hbmd{\cpi} \nonumber      .
 \end{IEEEeqnarray}
 
 
+\subsection{Variations on the Basic Model}
+
+\subsubsection{Simplifying Waveform Template Estimation}
+
+If only a short section of data is to be studied, then it may be valid to assume that the waveform template is constant for every beat. In this case, it is only necessary to specify a prior,
+%
+\begin{IEEEeqnarray}{rCl}
+ p(\hbwf{\si}) & = & \normalden{\hbwf{\si}}{0}{\hbwfpriorcov} \nonumber       .
+\end{IEEEeqnarray}
+%
+The algorithm proceeds as before except that all Kalman filter prediction steps are omitted when calculating the waveform template conditional posterior distributions.
+
+\subsubsection{A Smoother Likelihood Function}
+
+As formulated, the observation density for the $(\ti)$th observation is not a smooth function of the changepoint sequence; it contains a jump at the point $\ot{\ti}=\cpt{\mrcpi{\ti}}$, as the observation is shifted from one heartbeat to the next. This is problematic for gradient ascent algorithms seeking a peak in the likelihood function. To alleviate this problem, we use a window function to smoothly taper between the heartbeats,
+%
+\begin{IEEEeqnarray}{rCl}
+ \hs{\si}{\ct} & = & \begin{cases} \window\left(\frac{\ct-\cpt{\mrcpi(\ct)}}{\period}\right) \intrp(\hbst{\mrcpi(\ct)},\ct) \cdot \hbwf{\si,\mrcpi(\ct)} + \left[1-\window\left(\frac{\ct-\cpt{\mrcpi(\ct)}}{\period}\right)\right] \intrp(\hbst{\mrcpi(\ct)-1},\ct) \cdot \hbwf{\si,\mrcpi(\ct)-1} & \cpt{\mrcpi(\ct)} < \ct \leq \cpt{\mrcpi(\ct)} + \period \\
+ \intrp(\hbst{\mrcpi(\ct)},\ct) \cdot \hbwf{\si,\mrcpi(\ct)} & \cpt{\mrcpi(\ct)} + \period < \ct < \cpt{\mrcpi(\ct)+1}
+ \end{cases} \nonumber      ,
+\end{IEEEeqnarray}
+%
+where $\window(\ct)$ is a monotonically non-decreasing function with $\window(0)=0$ and $\window(1)=1$ and with zero gradient at both $\ct=0$ and $\ct=1$. For example,
+%
+\begin{IEEEeqnarray}{rCl}
+ \window(t) & = & \half\left[1 - \cos(\pi t)\right] \nonumber      .
+\end{IEEEeqnarray}
+
 \subsection{Modelling Heartbeat Combinations}
+
+
 
 \subsection{Modelling Clutter and Interference}
 
