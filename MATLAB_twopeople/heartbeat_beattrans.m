@@ -57,8 +57,9 @@ if nargout > 1
     end
     
     % End effects
-    prob = prob + log(1 - gamcdf( end_time-latest_time, model.tau_trans_shape, model.tau_trans_scale ));
-    prob = prob - log(1 - gamcdf( start_time-pre_time, model.tau_trans_shape, model.tau_trans_scale ));
+    prob = prob ...
+        + log(1 - gamcdf( end_time-(latest_time+latest_param), model.tau_trans_shape, model.tau_trans_scale )) ...
+        - log(1 - gamcdf( start_time-(pre_time+pre_param), model.tau_trans_shape, model.tau_trans_scale ));
     
 end
 

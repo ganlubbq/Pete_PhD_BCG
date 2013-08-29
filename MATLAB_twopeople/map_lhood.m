@@ -4,7 +4,7 @@ test_beat = beat;
 tau1_offset = beat(1).pre_time + beat(1).pre_param;
 tau2_offset = beat(2).pre_time + beat(2).pre_param;
 
-tau_rng = 0:0.01:1;
+tau_rng = 0:0.02:2;
 lhood_map = zeros(length(tau_rng));
 
 for xx = 1:length(tau_rng)

@@ -15,7 +15,7 @@ fprintf(1, 'Initialisation Loop: ');
 % Particle loop
 for ii = 1:Nf
     
-    fprintf(1, '%u ', ii);
+%     fprintf(1, '%u ', ii);
     
     % Sample initial values for the parameters and changepoints
     start_time = 0; end_time = algo.Lstart/model.fs;
@@ -35,7 +35,7 @@ end
 fprintf(1, ' COMPLETE.\n');
 
 % Particle filter loop
-kk = 0;
+kk = -algo.S;
 mm = 0;
 while 1
     
@@ -92,8 +92,8 @@ while 1
         [wf_mn, wf_vr] = heartbeat_separation( display, algo, model, time(1:kk), observ(:,1:kk), ps(ii).beat );
         
         % Old probabilities
-        if mm > 1
-            [H, Y] = heartbeat_obsmat(algo, model, time(kk+1:kk+last_L-S), observ(:,kk+1:kk+last_L-S), ps(ii).beat);
+        if mm > 0
+            [H, Y] = heartbeat_obsmat(algo, model, time(kk+1:min(kk+last_L-S,model.K)), observ(:,kk+1:min(kk+last_L-S,model.K)), ps(ii).beat);
             old_lhood = loggausspdf(Y, H*wf_mn, H*wf_vr*H'+model.y_obs_vr*eye(length(Y)));
         else
             old_lhood = 0;
@@ -123,20 +123,26 @@ while 1
                 end
             end
             
-            [beat(pp), init_trans_prob(pp)] = heartbeat_beattrans(model, pre_time, pre_param, ante_param, start_time, end_time, []);
+%             [beat(pp), init_trans_prob(pp)] = heartbeat_beattrans(model, pre_time, pre_param, ante_param, start_time, end_time, []);
             
         end
-        
-        if 1%model.np == 1
-            % Optimise and re-propose
-            [beat, ppsl_prob] = heartbeat_optimalgaussianproposal(algo, model, beat, time(kk+1:kk+L), observ(:,kk+1:kk+L), wf_mn, wf_vr);
-            for pp = 1:model.np
-                [~, trans_prob(pp)] = heartbeat_beattrans(model, beat(pp).pre_time, beat(pp).pre_param, beat(pp).ante_param, start_time, end_time, beat(pp));
-            end
-        else
-            trans_prob = 0;
-            ppsl_prob = 0;
+
+        % Heartbeat sequence proposal
+        [beat, ppsl_prob] = heartbeat_sequenceproposal(algo, model, beat, time(kk+1:kk+L), observ(:,kk+1:kk+L), wf_mn, wf_vr);
+        for pp = 1:model.np
+            [~, trans_prob(pp)] = heartbeat_beattrans(model, beat(pp).pre_time, beat(pp).pre_param, beat(pp).ante_param, start_time, end_time, beat(pp));
         end
+        
+%         if 1%model.np == 1
+%             % Optimise and re-propose
+%             [beat, ppsl_prob] = heartbeat_optimalgaussianproposal(algo, model, beat, time(kk+1:kk+L), observ(:,kk+1:kk+L), wf_mn, wf_vr);
+%             for pp = 1:model.np
+%                 [~, trans_prob(pp)] = heartbeat_beattrans(model, beat(pp).pre_time, beat(pp).pre_param, beat(pp).ante_param, start_time, end_time, beat(pp));
+%             end
+%         else
+%             trans_prob = 0;
+%             ppsl_prob = 0;
+%         end
 
 %         % Composite proposal update
 %         if model.np == 1
@@ -167,7 +173,7 @@ while 1
         % Update weight
         pt.weight = pt.weight - selected_weights(ii) ...
                     + new_lhood - old_lhood ...
-                    + sum(trans_prob) - sum(init_trans_prob) ...
+                    + sum(trans_prob) ... - sum(init_trans_prob) ...
                     - ppsl_prob;
         if isinf(pt.weight)||isnan(pt.weight)
             pt.weight = -inf;
@@ -193,6 +199,7 @@ while 1
     
     % Keep things that we'll need in the next interation
     last_pf = pf;
+    last_L = L;
     
 end
 
@@ -200,7 +207,115 @@ end
 
 end
 
+function [beat, ppsl_prob] = heartbeat_sequenceproposal(algo, model, beat, time, observ, wf_mn, wf_vr)
 
+% We're going to sequentially propose a new beat and then optimise it for
+% each person until we overun the window.
+
+% Throw away old heartbeats
+for pp = 1:model.np
+    beat(pp).time = [];
+    beat(pp).param = [];
+end
+
+% Start and end times of window
+start_time = time(1);
+end_time = time(end);
+
+% Which person and beat indices
+if (model.np==1)
+    p_idx = 1;
+    b_idx = 0;
+else
+    p_idx = [1 2];
+    b_idx = [0 0];
+end
+
+% Get the latest beat time and parameters
+latest_time = [beat.pre_time];
+latest_param = [beat.pre_param];
+
+% Initialise arrays
+interm_time = zeros(size(latest_time));
+interm_param = zeros(size(latest_param));
+ppsl_prob = 0;
+
+% Loop
+while true
+    
+    % Sample intermediate times
+    for pp = 1:model.np
+        if ~isnan(b_idx(pp))
+            b_idx(pp) = b_idx(pp) + 1;
+            lower_lim = gamcdf(start_time-(latest_time(pp)+latest_param(pp)), model.tau_trans_shape, model.tau_trans_scale);
+            u = unifrnd(lower_lim, 1);
+            interm_time(pp) = latest_time(pp) + latest_param(pp) + gaminv(u, model.tau_trans_shape, model.tau_trans_scale);
+            interm_param(pp) = heartbeat_paramtrans(model, latest_param(pp), []);
+        end
+    end
+    
+    % Make an intermediate beat structure
+    interm_beat = beat;
+    
+    % See whose left in
+    for pp = 1:model.np
+        if ~isnan(b_idx(pp))
+            % Have we overshot the window?
+            if interm_time(pp) > end_time
+                % Overshot - remove from the sampling list
+                b_idx(pp) = NaN;
+                p_idx(p_idx==pp) = [];
+            else
+                interm_beat(pp).time = [interm_beat(pp).time interm_time(pp)];
+                interm_beat(pp).param = [interm_beat(pp).param interm_param(pp)];
+            end
+        end
+    end
+    
+    % Break if everyone's done
+    if isempty(p_idx)
+        break;
+    end
+    
+    % Optimise times
+    [optimal_time, ~, LB, UB] = optimise_beat_times(algo, model, interm_beat, p_idx, b_idx(~isnan(b_idx)), time, observ, wf_mn, wf_vr);
+    
+    % Propose times
+    ppsl_vr = 0.001^2 * eye(length(p_idx));         % Should be using the Hessian, but a fixed value seems to do fine
+    latest_time(p_idx) = Inf(size(optimal_time));
+    while any( any(latest_time(p_idx)'<LB)|any(latest_time(p_idx)'>UB) )
+        latest_time(p_idx) = mvnrnd(optimal_time', ppsl_vr)';
+    end
+    latest_param(p_idx) = interm_param(p_idx);
+    
+    % Accumulate proprosal probability
+    ppsl_prob = ppsl_prob + loggausspdf(latest_time(p_idx)', optimal_time, ppsl_vr);
+    
+    % Store
+    for pp = 1:model.np
+        if ~isnan(b_idx(pp))
+            beat(pp).time = [beat(pp).time latest_time(pp)];
+            beat(pp).param = [beat(pp).param latest_param(pp)];
+        end
+    end
+    
+end
+    
+% End effects
+for pp = 1:length(beat)
+    if isempty(beat(pp).time)
+        latest_time(pp) = beat(pp).pre_time;
+        latest_param(pp) = beat(pp).pre_param;
+    else
+        latest_time(pp) = beat(pp).time(end);
+        latest_param(pp) = beat(pp).param(end);
+    end
+    ppsl_prob = ppsl_prob ...
+        + log(1 - gamcdf( end_time-(latest_time(pp)+latest_param(pp)), model.tau_trans_shape, model.tau_trans_scale )) ...
+        - log(1 - gamcdf( start_time-(beat(pp).pre_time+beat(pp).pre_param), model.tau_trans_shape, model.tau_trans_scale ));
+end
+
+end
 
 
 
@@ -217,7 +332,10 @@ end
 if (model.np==1) && ~isempty(beat.time)
     p_idx = 1;
     b_idx = 1;
-elseif(model.np==1) && isempty(beat.time)
+elseif (model.np==1) && isempty(beat.time)
+    p_idx = [];
+    b_idx = [];
+elseif (model.np==2) && isempty(beat(1).time) && isempty(beat(2).time)
     p_idx = [];
     b_idx = [];
 elseif isempty(beat(1).time) && ~isempty(beat(2).time)
@@ -259,17 +377,26 @@ end
 
 end
 
-function [tau, hess] = optimise_beat_times(algo, model, beat, p_idx, b_idx, time, observ, wf_mn, wf_vr)
+function [tau, hess, LB, UB] = optimise_beat_times(algo, model, beat, p_idx, b_idx, time, observ, wf_mn, wf_vr)
 
 % p_idx is the index(es) of the person for whom a heartbeat needs optimising
 % b_idx is the index(es) of the heartbeat
 % They should have the same length
+
+if any([beat.pre_time]<0)
+    half_width = 1;
+else
+    half_width = 0.15;
+end
 
 if isempty(p_idx)
     % No search required
     
     tau = [];
     hess = [];
+    
+    LB = [];
+    UB = [];
 
 elseif length(p_idx) == 1
     % Line search
@@ -278,21 +405,26 @@ elseif length(p_idx) == 1
     
     % Minimise negative log-likelihood
     h_of = @(tau) log_lhood(algo, model, time, observ, beat, p_idx, b_idx, wf_mn, wf_vr, tau);
-    LB = tau0-0.15;
-    UB = tau0+0.15;
+    LB = max(tau0-half_width, time(1));
+    if b_idx > 1
+        LB = max(LB, beat(p_idx).time(b_idx-1)+beat(p_idx).param(b_idx-1));
+    else
+        LB = max(LB, beat(p_idx).pre_time+beat(p_idx).pre_param);
+    end 
+    UB = min(tau0+half_width, time(end));
 %     tau = fminbnd(h_of, LB, UB);
     options = optimset('GradObj','on', 'Display','notify-detailed');%, 'TolX',0.001);
     tau = fmincon(h_of, tau0, [], [], [], [], LB, UB, [], options);
     
     % Approximate Hessian?
-    if nargout > 1
-        dt = 0.0001;
-        [~, grad0] = log_lhood(algo, model, time, observ, beat, p_idx, b_idx, wf_mn, wf_vr, tau);
-        [~, grad1] = log_lhood(algo, model, time, observ, beat, p_idx, b_idx, wf_mn, wf_vr, tau+dt);
-        hess = (grad1-grad0)/dt;
-    else
+%     if nargout > 1
+%         dt = 0.0001;
+%         [~, grad0] = log_lhood(algo, model, time, observ, beat, p_idx, b_idx, wf_mn, wf_vr, tau);
+%         [~, grad1] = log_lhood(algo, model, time, observ, beat, p_idx, b_idx, wf_mn, wf_vr, tau+dt);
+%         hess = (grad1-grad0)/dt;
+%     else
         hess = [];
-    end
+%     end
     
 else
     % 2D search
@@ -305,8 +437,15 @@ else
     % Minimise negative log-likelihood
     h_of = @(tau) log_lhood(algo, model, time, observ, beat, p_idx, b_idx, wf_mn, wf_vr, tau);
     options = optimset('GradObj','on', 'Display','notify-detailed', 'TolX',0.001);
-    LB = tau0-0.15;
-    UB = tau0+0.15;
+    LB = max(tau0-half_width, time(1));
+    for pp = 1:2
+        if b_idx(pp) > 1
+            LB(pp) = max(LB(pp), beat(p_idx(pp)).time(b_idx(pp)-1)+beat(p_idx(pp)).param(b_idx(pp)-1));
+        else
+            LB(pp) = max(LB(pp), beat(p_idx(pp)).pre_time+beat(p_idx(pp)).pre_param);
+        end
+    end
+    UB = min(tau0+half_width, time(end));
     tau = fmincon(h_of, tau0, [], [], [], [], LB, UB, [], options);
     
     % Hessian?

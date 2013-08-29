@@ -28,7 +28,7 @@ if ~exist('flags.batch', 'var') || (~flags.batch)
     % DEFINE RANDOM SEED
     rand_seed = 1;
     
-    t_start = 3E6;%6E6;%
+    t_start = 8E6;%3E6;%
     t_length = 1E6;
     offset = 110;
     
