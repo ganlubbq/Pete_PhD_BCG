@@ -250,7 +250,7 @@ Having completed the importance sampling, the overlapping portion of each old se
  \cp{\ti+\winlen}\pss{i} \leftarrow \left\{ \cp{\ti}\pss{i}, \cp[\ti]{\ti+\winlen}\pss{i} \right\} \nonumber       .
 \end{IEEEeqnarray}
 
-A valid algorithm results whatever choice is made for $\artden{\ti}{\ti-\blocklen+\winlen}$, but some will lead to desirable lower variances of the importance weights. 
+A valid algorithm results whatever choice is made for $\artden{\ti}{\ti-\blocklen+\winlen}$, but some will lead to desirable lower variances of the importance weights.
 
 \subsection{Evaluating the Likelihood}
 
@@ -414,13 +414,13 @@ along with the obvious augmentation of the interpolation matrix $\transfun$.
 When there are two people sleeping in the bed, the heartbeat signals are treated as independent a priori. (An interesting question is whether this assumption is valid --- will heartbeat rhythms ever ``sync up''?) Thus, we have two sequences of heartbeat start times, minimum durations and waveform templates,
 %
 \begin{IEEEeqnarray}{rCl}
- \left\{ \hbst[\peri]{\cpi}, \hbmd[\peri]{\cpi}, \hbwf[\peri]{\cpi} \right\} \: \peri=1,2 \nonumber      ,
+ \left\{ \hbst[\peri]{\cpi}, \hbmd[\peri]{\cpi}, \hbwf[\peri]{\cpi} \right\} \: \peri=1,2 \nonumber      .
 \end{IEEEeqnarray}
 %
-and also two noise-free heartbeat signals $\hs[\peri]{}{\ct} \: \peri=1,2$ each determined by its respective sequence by \eqref{} or \eqref{}{\meta Add refs}. The measurements are modelled as noisy observations of the sum of these signals. Thus, we now have,
+The set of changepoint times for this model is composed of the union of the two sequences of heartbeat times, and the set of parameters is composed of the union of the minimum heartbeat durations, and also an indicator variable $\peri_{\cpi}$ which assigns each changepoint to one person or the other. There are also two noise-free heartbeat signals $\hs[\peri]{}{\ct} \: \peri=1,2$ each determined by its respective sequence by \eqref{} or \eqref{}{\meta Add refs}. The measurements are modelled as noisy observations of the sum of these signals.   Thus, we now have,
 %
 \begin{IEEEeqnarray}{rClCrCl}
- \cpt{\cpi} & = & \begin{bmatrix} \hbst[1]{\cpi} \\ \hbst[2]{\cpi} \end{bmatrix} & \qquad & \cpp{\cpi} & = & \begin{bmatrix} \hbmd[1]{\cpi} \\ \hbmd[2]{\cpi} \end{bmatrix} \nonumber \\
+ \left\{\cpt{\cpi}\right\} & = & \left\{\hbst[1]{\cpi_1}\right\} \bigcup \left\{\hbst[2]{\cpi_2}\right\} & \qquad & \left\{\cpp{\cpi}\right\} & = & \left\{\begin{bmatrix} \hbmd[1]{\cpi_1} \\ \peri_{\cpi_1} \end{bmatrix}\right\} \bigcup \left\{\begin{bmatrix} \hbmd[2]{\cpi_2} \\ \peri_{\cpi_2} \end{bmatrix}\right\} \nonumber \\
   \nonumber \\
  \cplp{\cpi} & = & \begin{bmatrix} \hbwf[1]{\cpi} \\ \hbwf[2]{\cpi} \end{bmatrix} & \qquad & \cls{\ct} & = & \hs[1]{}{\ct} + \hs[2]{}{\ct} \nonumber       .
 \end{IEEEeqnarray}
