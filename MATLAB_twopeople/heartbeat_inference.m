@@ -465,17 +465,34 @@ end
 
 [H, Y] = heartbeat_obsmat(algo, model, time, observ, beat);
 R = model.y_obs_vr*eye(length(Y));
-S = R + H*wf_vr*H';
+% S = R + H*wf_vr*H';
 
-func = -loggausspdf(Y, H*wf_mn, S);
+y_minus_Hm = Y-H*wf_mn;
+G = H*wf_vr;
+S = R + G*H';
+
+% func = -loggausspdf(Y, H*wf_mn, S);
+func = -loggausspdf(y_minus_Hm, 0, S);
 
 if nargout > 1
     grad = zeros(length(p_idx),1);
     for bb = 1:length(p_idx)
         dH = heartbeat_obsmatderiv(algo, model, time, beat, p_idx(bb), b_idx(bb));
-        invSigma = inv(wf_vr)+H'*(R\H);
-        mu = invSigma\( H'*(R\Y) + wf_vr\wf_mn );
-        grad(bb) = -( mu'*dH'*(R\(Y-H*mu)) - trace( H'*(R\dH)/invSigma ) );
+        
+        nu = S\y_minus_Hm;
+        T = G*dH';
+%         M = T/S;
+        M = zeros(size(T));
+        L = min(algo.L, length(time));
+        for ii = 1:model.num_sens
+            idx_rng = (L*(ii-1)+1):(L*ii);
+            M(idx_rng,idx_rng) = T(idx_rng,idx_rng)/S(idx_rng,idx_rng);
+        end
+        grad(bb) = -(  wf_mn'*dH'*nu + nu'*M*y_minus_Hm - trace(M)  );
+        
+%         invSigma = inv(wf_vr)+H'*(R\H);
+%         mu = invSigma\( H'*(R\Y) + wf_vr\wf_mn );
+%         grad(bb) = -( mu'*dH'*(R\(Y-H*mu)) - trace( H'*(R\dH)/invSigma ) );
     end
 end
 if nargout > 2
