@@ -1,4 +1,4 @@
-function [mu, Sigma, H] = heartbeat_separation( display, algo, model, time, observ, beat )
+function [mu, Sigma, H, Y] = heartbeat_separation( display, algo, model, time, observ, beat )
 %HEARTBEAT_SEPARATION Separate heartbeats with a Gibbs Sampler
 
 % Set up interpolation matrixes

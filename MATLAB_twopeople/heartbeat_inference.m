@@ -17,19 +17,29 @@ for ii = 1:Nf
     
 %     fprintf(1, '%u ', ii);
     
+    % How long is the initial stretch?
+    Lstart = algo.L-algo.S;
+
     % Sample initial values for the parameters and changepoints
-    start_time = 0; end_time = algo.Lstart/model.fs;
-    last_pf(ii).beat = heartbeat_initialise( algo, model, time(1:algo.Lstart), observ(:,1:algo.Lstart), start_time, end_time );
+    start_time = time(1); end_time = time(Lstart);
+    beat = heartbeat_initialise( algo, model, time(1:Lstart), observ(:,1:Lstart), start_time, end_time );
+    
+    % Propose sequence
+    [beat, ppsl_prob] = heartbeat_sequenceproposal(algo, model, beat, time(1:Lstart), observ(:,1:Lstart), model.w_prior_mn, model.w_prior_vr);
+    for pp = 1:model.np
+        [~, trans_prob(pp)] = heartbeat_beattrans(model, beat(pp).pre_time, beat(pp).pre_param, beat(pp).ante_param, start_time, end_time, beat(pp));
+    end
     
     % Store
-    ps(ii).beat = last_pf(ii).beat;
+    last_pf(ii).beat = beat;
+    ps(ii).beat = beat;
     
-%     % Probabilities
-%     [H, Y] = heartbeat_obsmat(algo, model, time(1:algo.Lstart), observ(:,1:algo.Lstart), ps(ii).beat);
-%     lhood = loggausspdf(Y, H*model.w_prior_mn, H*model.w_prior_vr*H'+model.y_obs_vr*eye(length(Y)));
+    % Probabilities
+    [H, Y] = heartbeat_obsmat(algo, model, time(1:Lstart), observ(:,1:Lstart), ps(ii).beat);
+    lhood = loggausspdf(Y, H*model.w_prior_mn, H*model.w_prior_vr*H'+model.y_obs_vr*eye(length(Y)));
     
     % Update weight
-    last_pf(ii).weight = 0;%lhood;%
+    last_pf(ii).weight = lhood + sum(trans_prob) - ppsl_prob;%0;%
     
 end
 fprintf(1, ' COMPLETE.\n');
@@ -51,7 +61,7 @@ while 1
     start_time = time(kk+1);
     end_time = time(kk+L);
     if mm == 1
-        last_L = algo.Lstart;
+        last_L = algo.S;
     else
         last_L = algo.L;
     end
@@ -114,12 +124,16 @@ while 1
             beat_period_offset = start_time - pre_time - ppsl_pre_param;
             ppsl_survive_prob = log(1 - gamcdf( beat_period_offset, model.tau_trans_shape, model.tau_trans_scale ));
             if log(rand) < ppsl_survive_prob-survive_prob
-                pre_param = ppsl_pre_param;
+                beat(pp).pre_param = ppsl_pre_param;
                 
                 % Update smoothed particle too
-                idx = find( ps(ii).beat(pp).time==pt.beat(pp).pre_time );
+                idx = find( ps(ii).beat(pp).time==beat(pp).pre_time );
                 if ~isempty(idx)
                     ps(ii).beat(pp).param(:,idx) = ppsl_pre_param;
+                elseif ps(ii).beat(pp).pre_time == beat(pp).pre_time
+                    ps(ii).beat(pp).pre_param = ppsl_pre_param;
+                else
+                    error('Where''d it go?')
                 end
             end
             
@@ -470,16 +484,21 @@ R = model.y_obs_vr*eye(length(Y));
 y_minus_Hm = Y-H*wf_mn;
 G = H*wf_vr;
 S = R + G*H';
+nu = S\y_minus_Hm;
 
 % func = -loggausspdf(Y, H*wf_mn, S);
-func = -loggausspdf(y_minus_Hm, 0, S);
+% func = -loggausspdf(y_minus_Hm, 0, S);
+
+% log_2(pi) is 1.83787706640935;
+func = 0.5*( y_minus_Hm'*nu + 1.83787706640935*length(Y) +  2*sum(log(diag(chol(S)))) );
 
 if nargout > 1
+    
     grad = zeros(length(p_idx),1);
+    
     for bb = 1:length(p_idx)
         dH = heartbeat_obsmatderiv(algo, model, time, beat, p_idx(bb), b_idx(bb));
         
-        nu = S\y_minus_Hm;
         T = G*dH';
 %         M = T/S;
         M = zeros(size(T));
@@ -494,6 +513,7 @@ if nargout > 1
 %         mu = invSigma\( H'*(R\Y) + wf_vr\wf_mn );
 %         grad(bb) = -( mu'*dH'*(R\(Y-H*mu)) - trace( H'*(R\dH)/invSigma ) );
     end
+   
 end
 if nargout > 2
     hess = 0;

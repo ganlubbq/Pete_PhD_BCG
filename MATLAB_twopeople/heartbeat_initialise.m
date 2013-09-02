@@ -10,8 +10,7 @@ wf_vr = model.w_prior_vr;
 
 % Sampling start times from the prior
 for pp = 1:model.np
-    pre_time = sample_start_time(model);
-    pre_param = heartbeat_paramtrans(model, [], []);
+    [pre_time, pre_param] = sample_start_time(model);
     beat(pp) = heartbeat_beattrans(model, pre_time, pre_param, [], start_time, end_time, []);
     beat(pp).time = [];
     beat(pp).param = [];
@@ -56,13 +55,13 @@ end
 
 
 
-function [pre_time] = sample_start_time(model)
+function [pre_time, pre_param] = sample_start_time(model)
 
 % Sample parameter from prior
-[ param, ~ ] = heartbeat_paramtrans(model, [], []);
+[ pre_param, ~ ] = heartbeat_paramtrans(model, [], []);
 
 % Sample a beat period from the prior
-[ period, ~ ] = heartbeat_periodtrans(model, param, []);
+[ period, ~ ] = heartbeat_periodtrans(model, pre_param, []);
 
 % Sample beat time
 pre_time = unifrnd(0-period, 0);

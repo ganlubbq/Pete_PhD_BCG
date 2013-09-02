@@ -115,8 +115,10 @@ end
 figure, hold on
 plot(time, x);
 for ii = 1:length(ps), plot(ps(ii).beat(1).time, [diff(ps(ii).beat(1).time) 0], 'b*'); end
+for ii = 1:length(ps), plot(ps(ii).beat(1).pre_time, ps(ii).beat(1).time(1)-ps(ii).beat(1).pre_time, 'b*'); end
 if model.np == 2
     for ii = 1:length(ps), plot(ps(ii).beat(2).time, [diff(ps(ii).beat(2).time) 0], 'bo'); end
+    for ii = 1:length(ps), plot(ps(ii).beat(2).pre_time, ps(ii).beat(2).time(1)-ps(ii).beat(2).pre_time, 'bo'); end
 end
 
 figure, hold on
