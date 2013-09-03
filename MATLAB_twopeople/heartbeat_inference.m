@@ -367,11 +367,11 @@ end
 [tau_opt] = optimise_beat_times(algo, model, beat, p_idx, b_idx, time, observ, wf_mn, wf_vr);
 
 if ~isempty(p_idx)
-%     if isposdef(-hess)
-%         ppsl_vr = -inv(hess);
-%     else
+    if isposdef(-hess)
+        ppsl_vr = -inv(hess);
+    else
         ppsl_vr = 0.001^2 * eye(length(p_idx));         % Should be using the Hessian, but a fixed value seems to do fine
-%     end
+    end
     tau = mvnrnd(tau_opt', ppsl_vr)';
     ppsl_prob = loggausspdf(tau, tau_opt, ppsl_vr);
 else
@@ -396,6 +396,8 @@ function [tau, hess, LB, UB] = optimise_beat_times(algo, model, beat, p_idx, b_i
 % p_idx is the index(es) of the person for whom a heartbeat needs optimising
 % b_idx is the index(es) of the heartbeat
 % They should have the same length
+
+tol = 0.001;
 
 if any([beat.pre_time]<0)
     half_width = 1;
@@ -426,9 +428,10 @@ elseif length(p_idx) == 1
         LB = max(LB, beat(p_idx).pre_time+beat(p_idx).pre_param);
     end 
     UB = min(tau0+half_width, time(end));
-%     tau = fminbnd(h_of, LB, UB);
-    options = optimset('GradObj','on', 'Display','notify-detailed');%, 'TolX',0.001);
-    tau = fmincon(h_of, tau0, [], [], [], [], LB, UB, [], options);
+%     options = optimset('Display','notify-detailed', 'TolX',tol);
+%     tau = fminbnd(h_of, LB, UB, options);
+    options = optimset('GradObj','on', 'Display','notify-detailed', 'TolX',tol);
+    [tau, ~, ~, ~, ~, ~, hess] = fmincon(h_of, tau0, [], [], [], [], LB, UB, [], options);
     
     % Approximate Hessian?
 %     if nargout > 1
@@ -437,7 +440,7 @@ elseif length(p_idx) == 1
 %         [~, grad1] = log_lhood(algo, model, time, observ, beat, p_idx, b_idx, wf_mn, wf_vr, tau+dt);
 %         hess = (grad1-grad0)/dt;
 %     else
-        hess = [];
+%         hess = [];
 %     end
     
 else
@@ -450,7 +453,6 @@ else
     
     % Minimise negative log-likelihood
     h_of = @(tau) log_lhood(algo, model, time, observ, beat, p_idx, b_idx, wf_mn, wf_vr, tau);
-    options = optimset('GradObj','on', 'Display','notify-detailed', 'TolX',0.001);
     LB = max(tau0-half_width, time(1));
     for pp = 1:2
         if b_idx(pp) > 1
@@ -460,10 +462,11 @@ else
         end
     end
     UB = min(tau0+half_width, time(end));
-    tau = fmincon(h_of, tau0, [], [], [], [], LB, UB, [], options);
+    options = optimset('GradObj','on', 'Display','notify-detailed', 'TolX', tol);%, 'algorithm', 'active-set');
+    [tau, ~, ~, ~, ~, ~, hess] = fmincon(h_of, tau0, [], [], [], [], LB, UB, [], options);
     
-    % Hessian?
-    hess = [];
+%     % Hessian?
+%     hess = [];
     
 end
 
@@ -481,9 +484,15 @@ end
 R = model.y_obs_vr*eye(length(Y));
 % S = R + H*wf_vr*H';
 
-y_minus_Hm = Y-H*wf_mn;
-G = H*wf_vr;
-S = R + G*H';
+% y_minus_Hm = Y-H*wf_mn;
+% G = H*wf_vr;
+% S = R + G*H';
+% nu = S\y_minus_Hm;
+
+y_minus_Hm = Y-mtimesx(H,'n',wf_mn,'n','SPEED');
+G = mtimesx(H,'n',wf_vr,'n','SPEED');
+S = R + mtimesx(G,'n',H,'t','SPEED');
+% U = S\G;
 nu = S\y_minus_Hm;
 
 % func = -loggausspdf(Y, H*wf_mn, S);
@@ -495,12 +504,23 @@ func = 0.5*( y_minus_Hm'*nu + 1.83787706640935*length(Y) +  2*sum(log(diag(chol(
 if nargout > 1
     
     grad = zeros(length(p_idx),1);
+    hess = zeros(length(p_idx));
+    
+%     %%%%%
+%     M = S\G;
+%     zeta = G'*nu;
+%     for bb = 1:length(p_idx)
+%         dH = heartbeat_obsmatderiv(algo, model, time, beat, p_idx(bb), b_idx(bb));
+%         grad(bb) = -(  wf_mn'*dH'*nu + zeta'*dH'*nu - trace(dH'*M)  );
+%     end
+%     %%%%%
     
     for bb = 1:length(p_idx)
         dH = heartbeat_obsmatderiv(algo, model, time, beat, p_idx(bb), b_idx(bb));
         
-        T = G*dH';
+%         T = G*dH';
 %         M = T/S;
+        T = mtimesx(G,'n',dH,'t','SPEED');
         M = zeros(size(T));
         L = min(algo.L, length(time));
         for ii = 1:model.num_sens
@@ -509,14 +529,37 @@ if nargout > 1
         end
         grad(bb) = -(  wf_mn'*dH'*nu + nu'*M*y_minus_Hm - trace(M)  );
         
+%         V = U*dH';
+%         grad(bb) = -(  wf_mn'*dH'*nu + y_minus_Hm'*V*nu - trace(V)  );
+        
 %         invSigma = inv(wf_vr)+H'*(R\H);
 %         mu = invSigma\( H'*(R\Y) + wf_vr\wf_mn );
 %         grad(bb) = -( mu'*dH'*(R\(Y-H*mu)) - trace( H'*(R\dH)/invSigma ) );
+        
+%         if nargout > 2
+%             
+%             d2H = 
+%             
+%             h_Omega = T+T';
+%             h_zeta = h_Omega*nu;
+%             h_Theta = G*d2H;
+%             h_xi = dH'*nu;
+%             h_mtilde = dH'*m;
+%             h_Gamma = h_Omega*V;
+%             h_Lambda = dH*wf_vr*dH';
+%             h_Xi = (h_Lambda + h_Theta - h_Gamma)/S;
+%             
+%             hess(bb) = - h_zeta'*(S\h_zeta) ...
+%                        - h_xi'*wf_vr*h_xi ...
+%                        - nu'*h_Theta*nu ...
+%                        + wf_mn'*d2H*nu ...
+%                        + h_mtilde'*(S\h_mtilde) ...
+%                        + trace(h_Xi);
+%             
+%         end
+        
     end
    
-end
-if nargout > 2
-    hess = 0;
 end
 
 end
