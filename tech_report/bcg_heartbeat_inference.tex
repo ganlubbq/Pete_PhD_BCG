@@ -57,25 +57,21 @@
 
 In contrast with a standard hidden Markov model, the dynamics of the latent state in a variable rate model are dependent of a series of changepoints which occur at instantaneous moments in continuous time, and their associated parameters.
 
-Consider a time interval $[0,\ctmax]$ during which observations $\{\ob{1} \dots \ob{\timax}\}$ are made at times $\{\ot{1} \dots \ot{\timax}\}$ (where for convenience we require $\ot{1}=0$ and $\ot{\timax}=\ctmax$). During this period an unknown number of changepoints $\fcpi$ occur at times $\{\cpt{1} \dots \cpt{\fcpi} \}$, each with associated changepoint parameters $\{\cpp{1} \dots \cpp{\fcpi} \}$. Furthermore, $\cpt{0}$ and $\cpp{0}$ are the changepoint time and parameter immediately preceding the beginning of the observations. Henceforth, discrete sets will be written in the format $z_{1:\ti} = \{z_{1} \dots z_{\ti}\}$.
+Consider a set of observations $\ob{1:\timax}$ made at times $\ot{1:\timax}$ of some underlying continuously-varying latent state $\cls{\ct}$. The dynamics of this latent state are dependent on a series of changepoints occurring at times $\cpt{1:\fcpi}$, with associated parameters $\cpp{1:\fcpi}$.
 
-Inference algorithms for variable rate models will require us to manipulate and calculate probabilities for sequences of changepoints. To this end, we define the following variable for the sequence of changepoint times and parameters between two of the observation instants,
+Inference algorithms for variable rate models will require us to manipulate and calculate probabilities for sets of changepoints. To this end, we define the following variable for the complete set of changepoint times and parameters occurring between two of the observation instants,
 %
 \begin{IEEEeqnarray}{rCl}
- \cp[\ti_1]{\ti_2} = \{\cpt{j}, \cpp{j} \: \forall j : \ot{\ti_1} \leq \cpt{j} < \ot{\ti_2} \} \nonumber      .
+ \cp[\ti_1]{\ti_2} = \{\cpt{j}, \cpp{j} \: \forall j : \ot{\ti_1} < \cpt{j} \leq \ot{\ti_2} \} \nonumber      ,
 \end{IEEEeqnarray}
 %
-There is no guarantee that the first observation and the first changepoint are aligned, so we will also need to consider the distribution over the sequence ``stub'',
+and likewise for the set occurring before a given instant,
 %
 \begin{IEEEeqnarray}{rCl}
- \cp{1} = \{\cpt{0}, \cpp{0} : \cpt{0}\leq\ot{1}, \cpt{1}>\ot{1}\}\nonumber      .
+ \cp{\ti} = \{\cpt{j}, \cpp{j} \: \forall j : \cpt{j} \leq \ot{\ti} \} \nonumber      .
 \end{IEEEeqnarray}
-%
-The complete sequence up until a particular observation instant, including the initial changepoint, is then written
-%
-\begin{IEEEeqnarray}{rCl}
- \cp{\ti} & = & \cp{1} \cup \cp[1]{\ti} \nonumber      .
-\end{IEEEeqnarray}
+
+The set $\cp{1}$ contains changepoints which occur before the observations have begun. This need not be an exhaustive collection, but is simply a sufficient set to initialise the sequence. For example, in the balistocardiography models studied here, $\cp{1}$ contains one changepoint for each person in the bed, indicating the start time of the most recent heartbeat preceding the first observation, along with associated parameters. We assume that $\cp{1}$ has a fixed number of elements, $\mrcpi_{1}$.
 
 A final piece of notation, the following counting variables are introduced to keep track of the most recent changepoint to have occurred,
 %
@@ -84,25 +80,25 @@ A final piece of notation, the following counting variables are introduced to ke
  \mrcpi_{\ti} & = & \mrcpi(\ot{\ti}) \nonumber      .
 \end{IEEEeqnarray}
 
-For $\cpi>0$, the times and parameters of the changepoints have a conditional density,
+For $\cpi>\mrcpi_{1}$, the conditional distribution of the times and parameters is modelled with a density,
 %
 \begin{IEEEeqnarray}{rCl}
  \left\{ \cpt{\cpi}, \cpp{\cpi} \right\} & \sim & \cptransden{\cpt{},\cpp{}}(\cpt{\cpi}, \cpp{\cpi} | \cpt{0:\cpi-1}, \cpp{0:\cpi-1}) \nonumber      ,
 \end{IEEEeqnarray}
 %
-with this constructed such that $\prob(\cpt{\cpi} < \cpt{\cpi-1}) = 0$. Furthermore, the initial changepoint has a prior density,
+with this constructed such that $\prob(\cpt{\cpi} < \cpt{\cpi-1}) = 0$. Furthermore, the initial set of changepoints has a prior density,
 %
 \begin{IEEEeqnarray}{rCl}
- \left\{ \cpt{0}, \cpp{0} \right\} & \sim & \cptransden{\cpt{},\cpp{}}(\cpt{0}, \cpp{0}) \nonumber      ,
+ \left\{ \cpt{1:\mrcpi_{1}}, \cpp{1:\mrcpi_{1}} \right\} & \sim & \cptransden{\cpt{},\cpp{}}(\cpt{1:\mrcpi_{1}}, \cpp{1:\mrcpi_{1}}) \nonumber      ,
 \end{IEEEeqnarray}
 %
-which is constructed such that $\prob(\cpt{\cpi} > 0) = 0$.
+which is constructed such that $\prob(\cpt{1:\mrcpi_{1}} > 0) = 0$.
 
-Just as in \citep{Whiteley2011}, a survivor function is defined for the probability that no new changepoint occurs before a given time,
+Following \citep{Whiteley2011}, a survivor function is defined for the probability that no new changepoint occurs before a given time,
 %
 \begin{IEEEeqnarray}{rCl}
- \survfunc{\cpt{0:\cpi}}{\cpp{0:\cpi}}{\ct} & = & \prob(\cpt{\cpi+1} > \ct | \cpt{0:\cpi}, \cpp{0:\cpi}) \nonumber \\
- & = & 1 - \int_{\cpt{\cpi}}^{\ct} \cptransden{\cpt{}}(\xi | \cpt{0:\cpi}, \cpp{0:\cpi}) \nonumber      .
+ \survfunc{\cpt{1:\cpi}}{\cpp{1:\cpi}}{\ct} & = & \prob(\cpt{\cpi+1} > \ct | \cpt{1:\cpi}, \cpp{1:\cpi}) \nonumber \\
+ & = & 1 - \int_{\cpt{\cpi}}^{\ct} \cptransden{\cpt{}}(\xi | \cpt{1:\cpi}, \cpp{1:\cpi}) \nonumber      .
 \end{IEEEeqnarray}
 
 Each changepoint sequence $\cp[\ti_1]{\ti_2}$ constitutes a finite duration marked point process, taking values in the space formed by the disjoint union,
@@ -116,22 +112,100 @@ where $\cppspace$ is the space of $\cpp{\cpi}$ and $\cptspace[\ti_1]{\ti_2,l} \s
 A rigorous treatment of probability distributions over marked point processes may be found in \citep{Jacobsen2006}. We can write the conditional distribution for a changepoint sequence,
 %
 \begin{IEEEeqnarray}{rCl}
- \cptransden{\cp{}}(\cp[\ti_1]{\ti_2} | \cp{\ti_1})  & = & \frac{ \survfunc{\cpt{0:\mrcpi_{\ti_2}}}{\cpp{0:\mrcpi_{\ti_2}}}{\ot{\ti_2}} }{ \survfunc{\cpt{0:\mrcpi_{\ti_1}}}{\cpp{0:\mrcpi_{\ti_1}}}{\ot{\ti_1}} } \prod_{\cpi=\mrcpi_{\ti_1}+1}^{\mrcpi_{\ti_2}} \cptransden{\cpt{},\cpp{}}(\cpt{\cpi}, \cpp{\cpi} | \cpt{0:\cpi-1}, \cpp{0:\cpi-1}) \nonumber       .
+ \cptransden{\cp{}}(\cp[\ti_1]{\ti_2} | \cp{\ti_1})  & = & \frac{ \survfunc{\cpt{1:\mrcpi_{\ti_2}}}{\cpp{1:\mrcpi_{\ti_2}}}{\ot{\ti_2}} }{ \survfunc{\cpt{1:\mrcpi_{\ti_1}}}{\cpp{1:\mrcpi_{\ti_1}}}{\ot{\ti_1}} } \prod_{\cpi=\mrcpi_{\ti_1}+1}^{\mrcpi_{\ti_2}} \cptransden{\cpt{},\cpp{}}(\cpt{\cpi}, \cpp{\cpi} | \cpt{1:\cpi-1}, \cpp{1:\cpi-1}) \nonumber       .
  %& = & \cptransden{\cpt{},\cpp{}}(\cpt{\mrcpi_{\ti_1}+1}, \cpp{\mrcpi_{\ti_1}+1} | \cpt{0:\cpi-1}, \cpp{0:\cpi-1}, \cpt{\mrcpi_{\ti_1}+1}>\ot{\ti_1}) \prod_{\cpi=\mrcpi_{\ti_1}+1}^{\mrcpi_{\ti_2}} \cptransden{\cpt{},\cpp{}}(\cpt{\cpi}, \cpp{\cpi} | \cpt{0:\cpi-1}, \cpp{0:\cpi-1}) \prob(\cpt{\mrcpi_{\ti_2}+1}>\ot{\ti_2}) \nonumber \\
 \end{IEEEeqnarray}
 %
-From its definition, we also get the following prior for the changepoint sequence stub,
+We also have the following prior for $\cp{1}$,
 %
 \begin{IEEEeqnarray}{rCl}
- \cptransden{\cp{}}(\cp{1}) & = & \cptransden{\cpt{},\cpp{}}(\cpt{0}, \cpp{0} | \cpt{1}>0) \nonumber      .
+ \cptransden{\cp{}}(\cp{1}) & = & \cptransden{\cpt{},\cpp{}}(\cpt{1:\mrcpi_{1}}, \cpp{1:\mrcpi_{1}} | \cpt{\mrcpi_{1}+1:\fcpi}>0) \nonumber      .
 \end{IEEEeqnarray}
 %
 Together, these give us the prior distribution for a complete sequence,
 %
 \begin{IEEEeqnarray}{rCl}
  \cptransden{\cp{}}(\cp{\ti}) & = & \cptransden{\cp{}}(\cp[1]{\ti} | \cp{1}) \cptransden{\cp{}}(\cp{1}) \nonumber \\
- & = & \frac{ \survfunc{\cpt{0:\mrcpi_{\ti}}}{\cpp{0:\mrcpi_{\ti}}}{\ot{\ti}} }{ \survfunc{\cpt{0}}{\cpp{0}}{0} } \cptransden{\cpt{},\cpp{}}(\cpt{0},\cpp{0} | \cpt{1}>0) \prod_{\cpi=1}^{\mrcpi_{\ti}} \cptransden{\cpt{},\cpp{}}(\cpt{\cpi}, \cpp{\cpi} | \cpt{0:\cpi-1}, \cpp{0:\cpi-1}) \nonumber      .
+ & = & \frac{ \survfunc{\cpt{1:\mrcpi_{\ti}}}{\cpp{1:\mrcpi_{\ti}}}{\ot{\ti}} }{ \survfunc{\cpt{1:\mrcpi_{1}}}{\cpp{1:\mrcpi_{1}}}{\ot{1}} } \cptransden{\cpt{},\cpp{}}(\cpt{1:\mrcpi_{1}},\cpp{1:\mrcpi_{1}} | \cpt{\mrcpi_{1}:\fcpi}>0) \prod_{\cpi=\mrcpi_{1}+1}^{\mrcpi_{\ti}} \cptransden{\cpt{},\cpp{}}(\cpt{\cpi}, \cpp{\cpi} | \cpt{0:\cpi-1}, \cpp{0:\cpi-1}) \nonumber      .
 \end{IEEEeqnarray}
+
+
+
+%Consider a time interval $[0,\ctmax]$ during which observations $\{\ob{1} \dots \ob{\timax}\}$ are made at times $\{\ot{1} \dots \ot{\timax}\}$ (where for convenience we require $\ot{1}=0$ and $\ot{\timax}=\ctmax$). During this period an unknown number of changepoints $\fcpi$ occur at times $\{\cpt{1} \dots \cpt{\fcpi} \}$, each with associated changepoint parameters $\{\cpp{1} \dots \cpp{\fcpi} \}$. Furthermore, $\cpt{0}$ and $\cpp{0}$ are the changepoint time and parameter immediately preceding the beginning of the observations. Henceforth, discrete sets will be written in the format $z_{1:\ti} = \{z_{1} \dots z_{\ti}\}$.
+%
+%Inference algorithms for variable rate models will require us to manipulate and calculate probabilities for sequences of changepoints. To this end, we define the following variable for the sequence of changepoint times and parameters between two of the observation instants,
+%%
+%\begin{IEEEeqnarray}{rCl}
+% \cp[\ti_1]{\ti_2} = \{\cpt{j}, \cpp{j} \: \forall j : \ot{\ti_1} \leq \cpt{j} < \ot{\ti_2} \} \nonumber      .
+%\end{IEEEeqnarray}
+%%
+%There is no guarantee that the first observation and the first changepoint are aligned, so we will also need to consider the distribution over the sequence ``stub'',
+%%
+%\begin{IEEEeqnarray}{rCl}
+% \cp{1} = \{\cpt{0}, \cpp{0} : \cpt{0}\leq\ot{1}, \cpt{1}>\ot{1}\}\nonumber      .
+%\end{IEEEeqnarray}
+%%
+%The complete sequence up until a particular observation instant, including the initial changepoint, is then written
+%%
+%\begin{IEEEeqnarray}{rCl}
+% \cp{\ti} & = & \cp{1} \cup \cp[1]{\ti} \nonumber      .
+%\end{IEEEeqnarray}
+%
+%A final piece of notation, the following counting variables are introduced to keep track of the most recent changepoint to have occurred,
+%%
+%\begin{IEEEeqnarray}{rCl}
+% \mrcpi(\ct)  & = & \max(\cpi : \cpt{\cpi}<\ct) \nonumber \\
+% \mrcpi_{\ti} & = & \mrcpi(\ot{\ti}) \nonumber      .
+%\end{IEEEeqnarray}
+
+%For $\cpi>0$, the times and parameters of the changepoints have a conditional density,
+%%
+%\begin{IEEEeqnarray}{rCl}
+% \left\{ \cpt{\cpi}, \cpp{\cpi} \right\} & \sim & \cptransden{\cpt{},\cpp{}}(\cpt{\cpi}, \cpp{\cpi} | \cpt{0:\cpi-1}, \cpp{0:\cpi-1}) \nonumber      ,
+%\end{IEEEeqnarray}
+%%
+%with this constructed such that $\prob(\cpt{\cpi} < \cpt{\cpi-1}) = 0$. Furthermore, the initial changepoint has a prior density,
+%%
+%\begin{IEEEeqnarray}{rCl}
+% \left\{ \cpt{0}, \cpp{0} \right\} & \sim & \cptransden{\cpt{},\cpp{}}(\cpt{0}, \cpp{0}) \nonumber      ,
+%\end{IEEEeqnarray}
+%%
+%which is constructed such that $\prob(\cpt{\cpi} > 0) = 0$.
+%
+%Just as in \citep{Whiteley2011}, a survivor function is defined for the probability that no new changepoint occurs before a given time,
+%%
+%\begin{IEEEeqnarray}{rCl}
+% \survfunc{\cpt{0:\cpi}}{\cpp{0:\cpi}}{\ct} & = & \prob(\cpt{\cpi+1} > \ct | \cpt{0:\cpi}, \cpp{0:\cpi}) \nonumber \\
+% & = & 1 - \int_{\cpt{\cpi}}^{\ct} \cptransden{\cpt{}}(\xi | \cpt{0:\cpi}, \cpp{0:\cpi}) \nonumber      .
+%\end{IEEEeqnarray}
+%
+%Each changepoint sequence $\cp[\ti_1]{\ti_2}$ constitutes a finite duration marked point process, taking values in the space formed by the disjoint union,
+%%
+%\begin{IEEEeqnarray}{rCl}
+% \cpspace[\ti_1]{\ti_2} & = & \bigcup_l \{l\} \times \cptspace[\ti_1]{\ti_2,l} \times \cppspace^l \nonumber      ,
+%\end{IEEEeqnarray}
+%%
+%where $\cppspace$ is the space of $\cpp{\cpi}$ and $\cptspace[\ti_1]{\ti_2,l} \subset \reals^l$ is the space spanned by $l$ changepoint times subject to the conditions that they all lie in the interval $[\ot{\ti_1},\ot{\ti_2}]$ and that each is greater than its predecessor.
+%
+%A rigorous treatment of probability distributions over marked point processes may be found in \citep{Jacobsen2006}. We can write the conditional distribution for a changepoint sequence,
+%%
+%\begin{IEEEeqnarray}{rCl}
+% \cptransden{\cp{}}(\cp[\ti_1]{\ti_2} | \cp{\ti_1})  & = & \frac{ \survfunc{\cpt{0:\mrcpi_{\ti_2}}}{\cpp{0:\mrcpi_{\ti_2}}}{\ot{\ti_2}} }{ \survfunc{\cpt{0:\mrcpi_{\ti_1}}}{\cpp{0:\mrcpi_{\ti_1}}}{\ot{\ti_1}} } \prod_{\cpi=\mrcpi_{\ti_1}+1}^{\mrcpi_{\ti_2}} \cptransden{\cpt{},\cpp{}}(\cpt{\cpi}, \cpp{\cpi} | \cpt{0:\cpi-1}, \cpp{0:\cpi-1}) \nonumber       .
+% %& = & \cptransden{\cpt{},\cpp{}}(\cpt{\mrcpi_{\ti_1}+1}, \cpp{\mrcpi_{\ti_1}+1} | \cpt{0:\cpi-1}, \cpp{0:\cpi-1}, \cpt{\mrcpi_{\ti_1}+1}>\ot{\ti_1}) \prod_{\cpi=\mrcpi_{\ti_1}+1}^{\mrcpi_{\ti_2}} \cptransden{\cpt{},\cpp{}}(\cpt{\cpi}, \cpp{\cpi} | \cpt{0:\cpi-1}, \cpp{0:\cpi-1}) \prob(\cpt{\mrcpi_{\ti_2}+1}>\ot{\ti_2}) \nonumber \\
+%\end{IEEEeqnarray}
+%%
+%From its definition, we also get the following prior for the changepoint sequence stub,
+%%
+%\begin{IEEEeqnarray}{rCl}
+% \cptransden{\cp{}}(\cp{1}) & = & \cptransden{\cpt{},\cpp{}}(\cpt{0}, \cpp{0} | \cpt{1}>0) \nonumber      .
+%\end{IEEEeqnarray}
+%%
+%Together, these give us the prior distribution for a complete sequence,
+%%
+%\begin{IEEEeqnarray}{rCl}
+% \cptransden{\cp{}}(\cp{\ti}) & = & \cptransden{\cp{}}(\cp[1]{\ti} | \cp{1}) \cptransden{\cp{}}(\cp{1}) \nonumber \\
+% & = & \frac{ \survfunc{\cpt{0:\mrcpi_{\ti}}}{\cpp{0:\mrcpi_{\ti}}}{\ot{\ti}} }{ \survfunc{\cpt{0}}{\cpp{0}}{0} } \cptransden{\cpt{},\cpp{}}(\cpt{0},\cpp{0} | \cpt{1}>0) \prod_{\cpi=1}^{\mrcpi_{\ti}} \cptransden{\cpt{},\cpp{}}(\cpt{\cpi}, \cpp{\cpi} | \cpt{0:\cpi-1}, \cpp{0:\cpi-1}) \nonumber      .
+%\end{IEEEeqnarray}
 
 
 %We can write the the following prior distribution for the changepoint sequence,
