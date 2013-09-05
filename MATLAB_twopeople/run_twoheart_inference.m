@@ -51,7 +51,7 @@ if ~exist('flags.batch', 'var') || (~flags.batch)
             display.h_pf(ff) = figure;
         end
     end
-        
+    
     % Set random seed
     s = RandStream('mt19937ar', 'seed', rand_seed);
     RandStream.setDefaultStream(s);
@@ -78,7 +78,7 @@ if 0
         figure, hold on
         plot(w_av{2}); plot(w_av{2}+2*w_sd{2}, '--'); plot(w_av{2}-2*w_sd{2}, '--');
     end
-%     [ps] = heartbeat_timeonlyinference(display, algo, model, time, observ, wf_mn, wf_vr);    
+    %     [ps] = heartbeat_timeonlyinference(display, algo, model, time, observ, wf_mn, wf_vr);
     
     model.w_prior_mn = wf_mn;
     model.w_prior_vr = wf_vr;
@@ -87,50 +87,60 @@ end
 
 %% Testing
 if 1
-    [ps] = heartbeat_inference(display, algo, model, time, observ);
+    [ps, ess] = heartbeat_inference(display, algo, model, time, observ);
 end
 
 %% Plot data
-figure, hold on
-plot(time, observ)
-plot(beats1(:,1), beats1(:,2),'g*')
-plot(beats2(:,1), beats2(:,2),'go')
+if display.plot_after
+    figure, hold on
+    plot(time, observ)
+    plot(beats1(:,1), beats1(:,2),'g*')
+    plot(beats2(:,1), beats2(:,2),'go')
+end
 
 %% Plot Results
 
-ii=1;
-[H, Y] = heartbeat_obsmat(algo, model, time, observ, ps(ii).beat);
-[wf_mn, wf_vr] = heartbeat_separation( display, algo, model, time, observ, ps(ii).beat );
-x_vec = H*wf_mn;
-x = reshape(x_vec, model.K, 4)';
-
-w_av{1} = reshape(wf_mn(1:4*model.dw), model.dw, 4);
-figure, plot(w_av{1});
-if model.np == 2
-    w_av{2} = reshape(wf_mn(4*model.dw+1:end), model.dw, 4);
-    figure, plot(w_av{2});
+if display.plot_after
+    ii=1;
+    [H, Y] = heartbeat_obsmat(algo, model, time, observ, ps(ii).beat);
+    [wf_mn, wf_vr] = heartbeat_separation( display, algo, model, time, observ, ps(ii).beat );
+    x_vec = H*wf_mn;
+    x = reshape(x_vec, model.K, 4)';
+    
+    w_av{1} = reshape(wf_mn(1:4*model.dw), model.dw, 4);
+    figure, plot(w_av{1});
+    if model.np == 2
+        w_av{2} = reshape(wf_mn(4*model.dw+1:end), model.dw, 4);
+        figure, plot(w_av{2});
+    end
+    
+    
+    figure, hold on
+    plot(time, x);
+    for ii = 1:length(ps), plot(ps(ii).beat(1).time, [diff(ps(ii).beat(1).time) 0], 'b*'); end
+    for ii = 1:length(ps), plot(ps(ii).beat(1).pre_time, ps(ii).beat(1).time(1)-ps(ii).beat(1).pre_time, 'b*'); end
+    if model.np == 2
+        for ii = 1:length(ps), plot(ps(ii).beat(2).time, [diff(ps(ii).beat(2).time) 0], 'bo'); end
+        for ii = 1:length(ps), plot(ps(ii).beat(2).pre_time, ps(ii).beat(2).time(1)-ps(ii).beat(2).pre_time, 'bo'); end
+    end
+    
+    figure, hold on
+    plot(time, x-observ);
+    
 end
-
-
-figure, hold on
-plot(time, x);
-for ii = 1:length(ps), plot(ps(ii).beat(1).time, [diff(ps(ii).beat(1).time) 0], 'b*'); end
-for ii = 1:length(ps), plot(ps(ii).beat(1).pre_time, ps(ii).beat(1).time(1)-ps(ii).beat(1).pre_time, 'b*'); end
-if model.np == 2
-    for ii = 1:length(ps), plot(ps(ii).beat(2).time, [diff(ps(ii).beat(2).time) 0], 'bo'); end
-    for ii = 1:length(ps), plot(ps(ii).beat(2).pre_time, ps(ii).beat(2).time(1)-ps(ii).beat(2).pre_time, 'bo'); end
-end
-
-figure, hold on
-plot(time, x-observ);
 
 %% How good it it?
-figure, hold on
-plot(beats1(:,1), beats1(:,2),'g*')
-for ii = 1:length(ps), plot(ps(ii).beat(1).time, [diff(ps(ii).beat(1).time) 0], 'b*'); end
-% for ii = 1:length(ps), plot(ps(ii).beat(1).time, ps(ii).beat(1).param, 'b*-'); end
-if model.np == 2
-    plot(beats2(:,1), beats2(:,2),'go')
-    for ii = 1:length(ps), plot(ps(ii).beat(2).time, [diff(ps(ii).beat(2).time) 0], 'bo'); end
-%     for ii = 1:length(ps), plot(ps(ii).beat(2).time, ps(ii).beat(2).param, 'bo-'); end
+
+if display.plot_after
+    
+    figure, hold on
+    plot(beats1(:,1), beats1(:,2),'g*')
+    for ii = 1:length(ps), plot(ps(ii).beat(1).time, [diff(ps(ii).beat(1).time) 0], 'b*'); end
+    % for ii = 1:length(ps), plot(ps(ii).beat(1).time, ps(ii).beat(1).param, 'b*-'); end
+    if model.np == 2
+        plot(beats2(:,1), beats2(:,2),'go')
+        for ii = 1:length(ps), plot(ps(ii).beat(2).time, [diff(ps(ii).beat(2).time) 0], 'bo'); end
+        %     for ii = 1:length(ps), plot(ps(ii).beat(2).time, ps(ii).beat(2).param, 'bo-'); end
+    end
+    
 end

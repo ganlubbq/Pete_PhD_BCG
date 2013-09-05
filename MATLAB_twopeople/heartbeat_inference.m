@@ -1,4 +1,4 @@
-function [ ps ] = heartbeat_inference( display, algo, model, time, observ )
+function [ ps, ess ] = heartbeat_inference( display, algo, model, time, observ )
 %HEARTBEAT_INFERENCE Separate BCG heartbeat signals. Joint estimation of
 %beat timings and waveforms, using a variable rate particle filter on a
 %rolling window.
@@ -204,10 +204,13 @@ while 1
         end
         
     end
-
+    
+    % Effective sample size
+    ess(mm) = calc_ESS([pf.weight]);
+    
     if display.text
         % Text output
-        fprintf(1, '     - Effective sample size: %f.\n', calc_ESS([pf.weight]));
+        fprintf(1, '     - Effective sample size: %f.\n', ess(mm));
         fprintf(1, '     - That took %f seconds.\n', toc);
     end
     
@@ -398,6 +401,7 @@ function [tau, hess, LB, UB] = optimise_beat_times(algo, model, beat, p_idx, b_i
 % They should have the same length
 
 tol = 0.001;
+opt_alg = 'trust-region-reflective' ;
 
 if any([beat.pre_time]<0)
     half_width = 1;
@@ -430,7 +434,7 @@ elseif length(p_idx) == 1
     UB = min(tau0+half_width, time(end));
 %     options = optimset('Display','notify-detailed', 'TolX',tol);
 %     tau = fminbnd(h_of, LB, UB, options);
-    options = optimset('GradObj','on', 'Display','notify-detailed', 'TolX',tol);
+    options = optimset('GradObj','on', 'Display','notify-detailed', 'TolX',tol,'algorithm',opt_alg);
     [tau, ~, ~, ~, ~, ~, hess] = fmincon(h_of, tau0, [], [], [], [], LB, UB, [], options);
     
     % Approximate Hessian?
@@ -462,7 +466,7 @@ else
         end
     end
     UB = min(tau0+half_width, time(end));
-    options = optimset('GradObj','on', 'Display','notify-detailed', 'TolX', tol);%, 'algorithm', 'active-set');
+    options = optimset('GradObj','on', 'Display','notify-detailed', 'TolX', tol, 'algorithm',opt_alg);
     [tau, ~, ~, ~, ~, ~, hess] = fmincon(h_of, tau0, [], [], [], [], LB, UB, [], options);
     
 %     % Hessian?
