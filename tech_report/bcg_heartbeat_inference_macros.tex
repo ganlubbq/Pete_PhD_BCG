@@ -44,7 +44,10 @@
 \newcommand{\cplp}[2][]{\ifstrempty{#1}{z_{#2}}{{z_{#2}^{[#1]}}}}           % Changepoint linear parameter
 \newcommand{\cp}[2][]{\ifstrempty{#1}{\theta_{#2}}{\theta_{#1 || #2}}}      % Changepoint set
 
-\newcommand{\repcp}[2][]{\ifstrempty{#1}{\tilde{\theta}_{#2}}{\tilde{\theta}_{#1 || #2}}}      % Changepoint set replacement
+% Extra changepoint things for algorithms
+\newcommand{\diffcpi}[1]{K^{[#1]}}                                          % Number of changepoints in the window
+\newcommand{\tmpcpt}[2][]{\ifstrempty{#1}{\tau_{#2}^*}{{\tau_{#2}^{*[#1]}}}}                    % Temporary Intermediate changepoint time
+\newcommand{\repcp}[2][]{\ifstrempty{#1}{\tilde{\theta}_{#2}}{\tilde{\theta}_{#1 || #2}}}       % Changepoint set replacement
 
 % State and observation dynamics
 \newcommand{\transfun}{F}                       % Deterministic transition function
@@ -56,23 +59,13 @@
 \newcommand{\obscov}{R}                         % Observation covariance matrix
 
 % Probabilities
-\newcommand{\prob}{P}                                                               % Probability
-\newcommand{\survfunc}[4][1]{\ifstrempty{#1}{S(#2,#3,#4)}{S^{[#1]}(#2,#3,#4)}}      % Survivor function
-\newcommand{\transden}[2][]{\ifstrempty{#1}{p_{#2}}{p^{[#1]}_{#2}}}                 % Transition density
-
-
-
-% Old - REMOVE
-%\newcommand{\ctmax}{T}                          % Maximum continuous time
-%\newcommand{\fcpi}{K_{\timax}}                  % Final changepoint index
-%\newcommand{\ls}[1]{x_{#1}}                     % Latent state
-%\newcommand{\cptransden}[1]{p_{#1}}             % Transition density for changepoint times and parameters
-
-
-
-% Densities and Probabilities
+\newcommand{\prob}{P}                                                                                       % Probability
+\newcommand{\survfunc}[4][1]{\ifstrempty{#1}{S\left(#2,#3,#4\right)}{S^{[#1]}\left(#2,#3,#4\right)}}        % Survivor function
+\newcommand{\transden}[2][]{\ifstrempty{#1}{p_{#2}}{p^{[#1]}_{#2}}}                                         % Transition density
 \newcommand{\impden}[2]{q_{#1 || #2}}           % Changepoint importance density
 \newcommand{\artden}[2]{\rho_{#1 || #2}}        % Changepoint artificial density
+\newcommand{\adjden}{\varphi}                   % Changepoint time ``adjustment'' density
+\newcommand{\tmpden}{\psi}                      % Intermediate changepoint artificial target density
 \newcommand{\lhood}{p_{y}}                      % Likelihood
 
 % Probability spaces
@@ -82,35 +75,35 @@
 \newcommand{\cptspace}[2][]{\ifstrempty{#1}{\mathbb{T}_{#2}}{\mathbb{T}_{#1 || #2}}}    % Space for changepoint times
 \newcommand{\cppspace}{\mathbb{U}}             % Space for a changepoint
 
-% Generic model features
-\newcommand{\gamshape}[1]{a_{#1}}               % Gamma density shape (for both beat times and minimum durations)
-\newcommand{\gamscale}[1]{b_{#1}}               % Gamma density shape (for both beat times and minimum durations)
-
 % Generic algorithm features
 \newcommand{\cplpmn}[1]{m_{#1}}                 % Heartbeat waveform mean
 \newcommand{\cplpvr}[1]{P_{#1}}                 % Heartbeat waveform variance
-\newcommand{\cplppredmn}[1]{\hat{m}_{#1}}                 % Heartbeat waveform predicted mean
-\newcommand{\cplppredvr}[1]{\hat{P}_{#1}}                 % Heartbeat waveform predicted variance
+\newcommand{\cplppredmn}[1]{\hat{m}_{#1}}       % Heartbeat waveform predicted mean
+\newcommand{\cplppredvr}[1]{\hat{P}_{#1}}       % Heartbeat waveform predicted variance
 
 % Block filtering variables
 \newcommand{\winlen}{L}                         % Window length
 \newcommand{\blocklen}{B}                       % Block length
 
+% Generic model features
+\newcommand{\gamshape}[1]{a_{#1}}               % Gamma density shape (for both beat times and minimum durations)
+\newcommand{\gamscale}[1]{b_{#1}}               % Gamma density shape (for both beat times and minimum durations)
+
 % Heartbeat model
-\newcommand{\period}{\Delta}                    % Sampling period
+\newcommand{\period}{\Delta}                                                    % Sampling period
 \newcommand{\hbst}[2][]{\ifstrempty{#1}{b_{#2}}{b_{#2}^{[#1]}}}                 % Heartbeat start time
 \newcommand{\hbmd}[2][]{\ifstrempty{#1}{\lambda_{#2}}{\lambda_{#2}^{[#1]}}}     % Heartbeat minimum duration
 \newcommand{\hbwf}[2][]{\ifstrempty{#1}{\omega_{#2}}{\omega_{#2}^{[#1]}}}       % Heartbeat waveform
-\newcommand{\hs}[3][]{\ifstrempty{#1}{\zeta_{#2}(#3)}{\zeta_{#2}^{[#1]}(#3)}}  % Heartbeat signal
-\newcommand{\hbwflen}{D}                        % Length of heartbeat waveform
-\newcommand{\intrp}[1][]{f}                     % Interpolation factor
-\newcommand{\intrpmat}{F}                       % Interpolation factor
-%\newcommand{\wfi}{m}                           % Waveform index
-\newcommand{\si}{s}                             % Sensor index
-\newcommand{\peri}{p}                           % Person index
-\newcommand{\hbwfpriorcov}{P}                   % Waveform prior covariance
-\newcommand{\hbwftranscov}{Q}                   % Waveform transition covariance
-\newcommand{\hbobscov}[1][]{\sigma_y^2 I}       % Observation covariance
-\newcommand{\hbwfmn}[1]{m_{#1}}                 % Heartbeat waveform mean
-\newcommand{\hbwfvr}[1]{P_{#1}}                 % Heartbeat waveform variance
-\newcommand{\window}{\phi}                      % Window function for likelihood function 
+\newcommand{\hs}[3][]{\ifstrempty{#1}{\zeta_{#2}(#3)}{\zeta_{#2}^{[#1]}(#3)}}   % Heartbeat signal
+\newcommand{\hbwflen}{D}                                                        % Length of heartbeat waveform
+\newcommand{\intrp}[1][]{f}                                                     % Interpolation factor
+\newcommand{\intrpmat}{F}                                                       % Interpolation factor
+\newcommand{\si}{v}                                                             % Sensor index
+\newcommand{\peri}{s}                                                           % Person index (equivalent to sequence index)
+\newcommand{\hbwfpriorcov}{P}                                                   % Waveform prior covariance
+\newcommand{\hbwftranscov}{Q}                                                   % Waveform transition covariance
+\newcommand{\hbobscov}[1][]{\sigma_y^2 I}                                       % Observation covariance
+\newcommand{\hbwfmn}[1]{m_{#1}}                                                 % Heartbeat waveform mean
+\newcommand{\hbwfvr}[1]{P_{#1}}                                                 % Heartbeat waveform variance
+\newcommand{\window}{\phi}                                                      % Window function for likelihood function 
+
