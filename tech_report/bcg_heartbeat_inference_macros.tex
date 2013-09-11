@@ -17,6 +17,7 @@
 \newcommand{\studenttden}[4]{\mathcal{ST}\left(#1|#2,#3,#4\right)}          % Student-t density
 
 % Particle shizzle
+\newcommand{\numpart}{N_P}                      % Number of particles
 \newcommand{\pss}[2][]{^{(#2)#1}}               % Particle superscript
 \newcommand{\pw}[1]{w_{#1}}                     % Particle weight
 \newcommand{\predpw}[1]{\hat{w}_{#1}}           % Predictive particle weight
@@ -86,7 +87,8 @@
 \newcommand{\adjden}{\varphi}                   % Changepoint time ``adjustment'' density
 \newcommand{\tmpden}{\psi}                      % Intermediate changepoint artificial target density
 \newcommand{\lhood}{p_{y}}                      % Likelihood
-\newcommand{\loglhood}{L_{y}}                  % Log-likelihood
+\newcommand{\loglhood}{L_{y}}                   % Log-likelihood
+\newcommand{\contlhood}{\phi}                   % Contracted likelihood (as a function of the sequence)
 
 % Probability spaces
 \newcommand{\reals}{\mathbb{R}}                 % Reals
@@ -114,14 +116,14 @@
 \newcommand{\hbst}[2][]{\ifstrempty{#1}{\tau_{#2}}{\tau_{#2}^{[#1]}}}           % Heartbeat start time
 \newcommand{\hbmd}[2][]{\ifstrempty{#1}{\lambda_{#2}}{\lambda_{#2}^{[#1]}}}     % Heartbeat minimum duration
 \newcommand{\hbwf}[2][]{\ifstrempty{#1}{\omega_{#2}}{\omega_{#2}^{[#1]}}}       % Heartbeat waveform
-\newcommand{\hs}[3][]{\ifstrempty{#1}{\zeta_{#2}(#3)}{\zeta_{#2}^{[#1]}(#3)}}   % Heartbeat signal
+\newcommand{\hs}[3][]{\ifstrempty{#1}{x_{#2}(#3)}{x_{#2}^{[#1]}(#3)}}           % Heartbeat signal
 \newcommand{\hbwflen}{D}                                                        % Length of heartbeat waveform
 \newcommand{\intrp}[1][]{f}                                                     % Interpolation factor
 \newcommand{\intrpmat}{F}                                                       % Interpolation matrix
 \newcommand{\si}{v}                                                             % Sensor index
 \newcommand{\peri}{s}                                                           % Person index (equivalent to sequence index)
-\newcommand{\hbwfpriorcov}{P}                                                   % Waveform prior covariance
-\newcommand{\hbwftranscov}{Q}                                                   % Waveform transition covariance
+\newcommand{\hbwfpriorcov}[1][]{\Upsilon_{#1}}                                  % Waveform prior covariance
+\newcommand{\hbwftranscov}{\sigma_{\omega}^2 I}                                 % Waveform transition covariance
 \newcommand{\hbobscov}[1][]{\sigma_y^2 I}                                       % Observation covariance
 \newcommand{\hbwfmn}[1]{m_{#1}}                                                 % Heartbeat waveform mean
 \newcommand{\hbwfvr}[1]{P_{#1}}                                                 % Heartbeat waveform variance
