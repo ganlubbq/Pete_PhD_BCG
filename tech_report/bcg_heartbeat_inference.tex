@@ -250,7 +250,7 @@ For the heartbeat inference problem investigated in this paper, the observations
 We can write the distribution sampled by this procedure as follows (assuming $\dmrcpi[2]{\ti_2} - \dmrcpi[2]{\ti_1} \geq \dmrcpi[1]{\ti_2} - \dmrcpi[1]{\ti_1}$, switch the indexes if this is not the case),
 %
 \begin{IEEEeqnarray}{l}
- \impden{\ti}{\ti+\winlen}(\cp[\ti]{\ti+\winlen} | \cp{\ti-\blocklen+\winlen}) = \prod_{\sqi}\left[ \frac{ \survfunc[\sqi]{\cpt[\sqi]{\dmrcpi[\sqi]{\ti_2}}}{\cpp[\sqi]{\dmrcpi[\sqi]{\ti_2}}}{\ot{\ti_2}} }{ \survfunc[\sqi]{\cpt[\sqi]{\dmrcpi[\sqi]{\ti_1}}}{\cpp[\sqi]{\dmrcpi[\sqi]{\ti_1}}}{\ot{\ti_1}} } \right] \nonumber \\
+ \impden{\ti}{\ti+\winlen}(\cp[\ti]{\ti+\winlen}, \tmpcpt[1]{\dmrcpi[1]{\ti}+1:\dmrcpi[1]{\ti+\winlen}}, \tmpcpt[2]{\dmrcpi[2]{\ti}+1:\dmrcpi[2]{\ti+\winlen}}, \dots | \cp{\ti-\blocklen+\winlen}) = \prod_{\sqi}\left[ \frac{ \survfunc[\sqi]{\cpt[\sqi]{\dmrcpi[\sqi]{\ti_2}}}{\cpp[\sqi]{\dmrcpi[\sqi]{\ti_2}}}{\ot{\ti_2}} }{ \survfunc[\sqi]{\cpt[\sqi]{\dmrcpi[\sqi]{\ti_1}}}{\cpp[\sqi]{\dmrcpi[\sqi]{\ti_1}}}{\ot{\ti_1}} } \right] \nonumber \\
  \qquad  \times \prod_{l=1}^{\diffcpi{1}} \left[\prod_{\sqi} \transden[\sqi]{\cpt{},\cpp{}}\left(\tmpcpt[\sqi]{\dmrcpi[\sqi]{\ti_1}+l}, \cpp[\sqi]{\dmrcpi[\sqi]{\ti_1}+l} \left| \cpt[\sqi]{\dmrcpi[\sqi]{\ti_1}+l-1}, \cpp[\sqi]{\dmrcpi[\sqi]{\ti_1}+l-1}\right.\right) \right] \nonumber \\
  \qquad \qquad \qquad \qquad \qquad \qquad\times \adjden \left( \cpt[1]{\dmrcpi[1]{\ti_1}+l}, \cpt[2]{\dmrcpi[2]{\ti_1}+l} \left| \tmpcpt[1]{\dmrcpi[1]{\ti_1}+l}, \tmpcpt[2]{\dmrcpi[2]{\ti_1}+l} \right.\right) \nonumber \\
  \qquad  \times \prod_{l=\diffcpi{1}+1}^{\diffcpi{2}} \transden[2]{\cpt{},\cpp{}}\left(\tmpcpt[2]{\dmrcpi[2]{\ti_1}+l}, \cpp[2]{\dmrcpi[2]{\ti_1}+l} \left| \cpt[2]{\dmrcpi[2]{\ti_1}+l-1}, \cpp[2]{\dmrcpi[2]{\ti_1}+l-1}\right.\right) \adjden \left( \cpt[2]{\dmrcpi[2]{\ti_1}+l} \left| \tmpcpt[2]{\dmrcpi[2]{\ti_1}+l} \right.\right) \nonumber      ,
@@ -265,7 +265,7 @@ Since the intermediate changepoint times are to be discarded, writing the distri
  \qquad \qquad \times \tmpden\left( \tmpcpt[1]{\dmrcpi[1]{\ti}+1:\dmrcpi[1]{\ti+\winlen}}, \tmpcpt[2]{\dmrcpi[2]{\ti}+1:\dmrcpi[2]{\ti+\winlen}}, \dots | \cp{\ti}, \repcp[\ti]{\ti+\winlen} \right) \nonumber      .
 \end{IEEEeqnarray}
 %
-A simple choice for $\tmpden$ is to use the transition distribution again,
+A simple choice is to use the transition distribution for both $\artden{}{}$ (as before) and $\tmpden$,
 %
 \begin{IEEEeqnarray}{l}
  \tmpden\left( \tmpcpt[1]{\dmrcpi[1]{\ti}+1:\dmrcpi[1]{\ti+\winlen}}, \tmpcpt[2]{\dmrcpi[2]{\ti}+1:\dmrcpi[2]{\ti+\winlen}}, \dots | \cp{\ti}, \repcp[\ti]{\ti+\winlen} \right) \nonumber \\
@@ -275,8 +275,8 @@ A simple choice for $\tmpden$ is to use the transition distribution again,
 which results in the following particle weight formula,
 %
 \begin{IEEEeqnarray}{l}
- \pw{\ti}\pss{i} \propto \frac{ \lhood(\ob{\ti+1:\ti+\winlen} | \cp{\ti}\pss{i}, \repcp[\ti]{\ti+\winlen}\pss{i}, \ob{1:\ti}) }{ \lhood(\ob{\ti+1:\ti-\blocklen+\winlen} | \cp{\ti-\blocklen+\winlen}\pss{i}, \ob{1:\ti}) } \nonumber \\
- \qquad \times \frac{ \prod_{\sqi} \prod_{\cpi=\dmrcpi[\sqi]{\ti_1}+1}^{\dmrcpi[\sqi]{\ti_2}} \transden[\sqi]{\cpt{}}(\cpt[\sqi]{\cpi} | \cpt[\sqi]{\cpi-1}, \cpp[\sqi]{\cpi-1}) }{ \prod_{l=1}^{\diffcpi{1}} \adjden \left( \cpt[1]{\dmrcpi[1]{\ti_1}+l}, \cpt[2]{\dmrcpi[2]{\ti_1}+l} \left| \tmpcpt[1]{\dmrcpi[1]{\ti_1}+l}, \tmpcpt[2]{\dmrcpi[2]{\ti_1}+l} \right.\right) \prod_{l=\diffcpi{1}+1}^{\diffcpi{2}} \adjden \left( \cpt[2]{\dmrcpi[2]{\ti_1}+l} \left| \tmpcpt[2]{\dmrcpi[2]{\ti_1}+l} \right.\right) } \nonumber       .
+ \pw{\ti} \propto \frac{ \lhood(\ob{\ti+1:\ti+\winlen} | \cp{\ti}, \repcp[\ti]{\ti+\winlen}, \ob{1:\ti}) }{ \lhood(\ob{\ti+1:\ti-\blocklen+\winlen} | \cp{\ti-\blocklen+\winlen}, \ob{1:\ti}) } \nonumber \\
+ \qquad \times \frac{ \prod_{\sqi} \prod_{\cpi=\dmrcpi[\sqi]{\ti_1}+1}^{\dmrcpi[\sqi]{\ti_2}} \transden[\sqi]{\cpt{}}\left(\cpt[\sqi]{\cpi} | \cpt[\sqi]{\cpi-1}, \cpp[\sqi]{\cpi-1}\right) }{ \prod_{l=1}^{\diffcpi{1}} \adjden \left( \cpt[1]{\dmrcpi[1]{\ti_1}+l}, \cpt[2]{\dmrcpi[2]{\ti_1}+l} \left| \tmpcpt[1]{\dmrcpi[1]{\ti_1}+l}, \tmpcpt[2]{\dmrcpi[2]{\ti_1}+l} \right.\right) \prod_{l=\diffcpi{1}+1}^{\diffcpi{2}} \adjden \left( \cpt[2]{\dmrcpi[2]{\ti_1}+l} \left| \tmpcpt[2]{\dmrcpi[2]{\ti_1}+l} \right.\right) } \nonumber       .
 \end{IEEEeqnarray}
 
 
@@ -375,7 +375,7 @@ where
 \end{IEEEeqnarray}
 %
 \begin{IEEEeqnarray}{rClcrCl}
- \cplptransmatwin{} & = & \begin{bmatrix} \cplptransmatwin[1]{1} \\ \cplptransmatwin[1]{2} \\ \vdots \\ \cplptransmatwin[2]{1} \\ \cplptransmatwin[2]{2} \\ \vdots \end{bmatrix} & \qquad & \cplptranscovwin{} & = & \begin{bmatrix} \cplptranscovwin[1]{1} & & & & & \\ & \cplptranscovwin[1]{2} & & & & & \\ & & \ddots & & & \\ & & & \cplptranscovwin[2]{1} & & \\ & & & & \cplptranscovwin[2]{2} & \\ & & & & & \ddots \end{bmatrix} \nonumber      
+ \cplptransmatwin{} & = & \begin{bmatrix} \cplptransmatwin[1]{1} \\ \cplptransmatwin[1]{2} \\ \vdots \\ \cplptransmatwin[2]{1} \\ \cplptransmatwin[2]{2} \\ \vdots \end{bmatrix} & \qquad & \cplptranscovwin{} & = & \begin{bmatrix} \cplptranscovwin[1]{1} & & & & & \\ & \cplptranscovwin[1]{2} & & & & & \\ & & \ddots & & & \\ & & & \cplptranscovwin[2]{1} & & \\ & & & & \cplptranscovwin[2]{2} & \\ & & & & & \ddots \end{bmatrix} \nonumber
 \end{IEEEeqnarray}
 %
 \begin{IEEEeqnarray}{rCl}
@@ -433,7 +433,7 @@ See Appendix~\ref{app:log-lhood-derivative} for proof. The gradient of $\transfu
 
 \subsection{System Outline}
 
-The balistocardiography (BCG) system under consideration consists of four force sensors placed under the legs of a bed, which are capable of recording the vibration caused by the subject's beating heart. Data is time-discretised and calibrated to give a measurement in newtons. 
+The balistocardiography (BCG) system under consideration consists of four force sensors placed under the legs of a bed, which are capable of recording the vibration caused by the subject's beating heart. Data is time-discretised and calibrated to give a measurement in newtons.
 
 \subsection{The Basic Model}
 
@@ -565,7 +565,7 @@ Therefore, in order for this model to adhere to the framework set out in section
 %
 \begin{IEEEeqnarray}{c}
  \cplp{\cpi} = \begin{bmatrix} \hbwf{\cpi} \\ \hbwf{\cpi-1} \end{bmatrix} \nonumber \\
- \transfun(\ct) = \begin{bmatrix} I \otimes \window\left(\frac{\ct-\hbst{\cmrcpi{\ct}}}{\period}\right) \intrp(\hbst{\cmrcpi{\ct}},\ct)^T & I \otimes \left[1-\window\left(\frac{\ct-\hbst{\cmrcpi{\ct}}}{\period}\right)\right] \intrp(\hbst{\cmrcpi{\ct}-1},\ct)^T \end{bmatrix} \nonumber      
+ \transfun(\ct) = \begin{bmatrix} I \otimes \window\left(\frac{\ct-\hbst{\cmrcpi{\ct}}}{\period}\right) \intrp(\hbst{\cmrcpi{\ct}},\ct)^T & I \otimes \left[1-\window\left(\frac{\ct-\hbst{\cmrcpi{\ct}}}{\period}\right)\right] \intrp(\hbst{\cmrcpi{\ct}-1},\ct)^T \end{bmatrix} \nonumber
 \end{IEEEeqnarray}
 \begin{IEEEeqnarray}{rCl}
  \cplptransmat{\cpi} & = & \begin{bmatrix} I & 0 \\ I & 0 \end{bmatrix} \nonumber \\
