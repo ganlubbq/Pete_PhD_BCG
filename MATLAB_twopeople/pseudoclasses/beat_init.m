@@ -1,4 +1,4 @@
-function [ beat ] = beat_init( model, pre_time, pre_param, ante_param, time, param )
+function [ beat ] = beat_init( model, pre_time, pre_param, ante_param, time, param, pqratio )
 %BEAT_INIT Initialise a heartbeat structure
 
 if isempty(pre_time)
@@ -16,13 +16,17 @@ end
 if isempty(param)
     param = zeros(model.dp,0);
 end
+if isempty(pqratio)
+    pqratio = zeros(size(time));
+end
 
 beat = struct(...
     'pre_time', pre_time, ...
     'pre_param', pre_param, ...
     'ante_param', ante_param, ...
     'time', time, ...
-    'param', param);
+    'param', param, ...
+    'pqratio', pqratio);
 
 end
 

@@ -40,7 +40,7 @@ end
 
 j = 1;
 
-for i=1:length(mxt)
+for i=length(mxt):-1:1
    
     while(1)
             
@@ -48,6 +48,11 @@ for i=1:length(mxt)
            mxt(i) = mxt(i) - 1;
         else
             mxt(i) = mxt(i) + 1;
+        end
+        
+        if (mxt(i) == 0)||(mxt(i) == length(x2))
+            mxt(i) = [];
+            break
         end
         
         if (x2(mxt(i)-1) <  x2(mxt(i))) && (x2(mxt(i)) >  x2(mxt(i) + 1)) 

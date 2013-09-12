@@ -7,7 +7,7 @@
 
 %% Set Up
 
-if ~exist('flags.batch', 'var') || (~flags.batch)
+if ~exist('flags', 'var') || ~isfield(flags,'batch') || (~flags.batch)
     
     clup
     dbstop if error
@@ -28,14 +28,15 @@ if ~exist('flags.batch', 'var') || (~flags.batch)
     % DEFINE RANDOM SEED
     rand_seed = 1;
     
-    t_start = 8E6;%3E6;%
     t_length = 1E6;
     offset = 110;
     
     if model.np == 1
         data_file = '../data/data3.mat'
+        t_start = 3E6;
     elseif model.np == 2
         data_file = '../data/data16.mat'
+        t_start = 6E6;%12E6;%3E6;%16E6;%2.5E6;%8E6;%
     end
     
     %%%%%%%%%%%%%%%%
@@ -135,12 +136,13 @@ if display.plot_after
     
     figure, hold on
     plot(beats1(:,1), beats1(:,2),'g*')
-    for ii = 1:length(ps), plot(ps(ii).beat(1).time, [diff(ps(ii).beat(1).time) 0], 'b*'); end
+    for ii = 1:length(ps), plot(ps(ii).beat(1).time(1:end-1), diff(ps(ii).beat(1).time), 'b*'); end
     % for ii = 1:length(ps), plot(ps(ii).beat(1).time, ps(ii).beat(1).param, 'b*-'); end
     if model.np == 2
         plot(beats2(:,1), beats2(:,2),'go')
-        for ii = 1:length(ps), plot(ps(ii).beat(2).time, [diff(ps(ii).beat(2).time) 0], 'bo'); end
+        for ii = 1:length(ps), plot(ps(ii).beat(2).time(1:end-1), diff(ps(ii).beat(2).time), 'bo'); end
         %     for ii = 1:length(ps), plot(ps(ii).beat(2).time, ps(ii).beat(2).param, 'bo-'); end
     end
+    ylim([0 2])
     
 end

@@ -7,7 +7,9 @@ if isempty(beat)
     % Sample heartbeats through the window
     latest_time = pre_time; latest_param = pre_param;
     period = 0;
-    time = []; param = zeros(model.dp,0);
+    time = [];
+    param = zeros(model.dp,0);
+    pqratio = [];
     
     % Loop until we're through the window
     while true
@@ -24,10 +26,11 @@ if isempty(beat)
         if latest_time < end_time
             time = [time, latest_time];
             param = [param, latest_param];
+            pqratio = [pqratio, 0];
 
-            %%% FUDGE TO STOP MORE THAN 1 BEAT PER WINDOW!!! %%%
-            break;
-            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%             %%% FUDGE TO STOP MORE THAN 1 BEAT PER WINDOW!!! %%%
+%             break;
+%             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         else
             break;
         end
@@ -35,7 +38,7 @@ if isempty(beat)
     end
     
     % Make a beat
-    beat = beat_init(model, pre_time, pre_param, ante_param, time, param);
+    beat = beat_init(model, pre_time, pre_param, ante_param, time, param, pqratio);
     
 end
 

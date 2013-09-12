@@ -17,6 +17,7 @@ for pp = 1:model.np
         pre_param = old_beat.param(:,latest);
         time = old_beat.time(latest+1:end);
         param = old_beat.param(:,latest+1:end);
+        pqratio = old_beat.pqratio(latest+1:end);
         if latest > 1
             ante_param = old_beat.param(:,latest-1);
         else
@@ -29,9 +30,10 @@ for pp = 1:model.np
         pre_param = old_beat.pre_param;
         time = old_beat.time;
         param = old_beat.param;
+        pqratio = old_beat.pqratio;
     end
     
-    new_beats(pp) = beat_init(model, pre_time, pre_param, ante_param, time, param);
+    new_beats(pp) = beat_init(model, pre_time, pre_param, ante_param, time, param, pqratio);
     
 end
 

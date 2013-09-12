@@ -14,6 +14,7 @@ for pp = 1:model.np
     beat(pp) = heartbeat_beattrans(model, pre_time, pre_param, [], start_time, end_time, []);
     beat(pp).time = [];
     beat(pp).param = [];
+    beat(pp).pqratio = [];
 end
 
 % % Evaluate likelihood
