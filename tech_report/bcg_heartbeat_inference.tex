@@ -610,33 +610,45 @@ Both the fixed template and the smoother likelihood adaptations may be used in c
 
 \section{Implementation and Testing}
 
-The variable rate block filter was implemented in MATLAB and tested on a number of data sets.
+The variable rate block filter was implemented in MATLAB and tested on a number of data sets. The locally-optimising proposal method was used, for which optimisation of the likelihood was achieved using the MATLAB \verb|fmincon| function from the optimisation toolbox.
 
 \subsection{Parameters}
 
 Vibration data was recorded using 4 sensors (one under each leg of a double bed) at a sampling frequency of 240Hz. A low-pass anti-aliasing filter with a cut-off frequency of 15Hz was used and the data down-sampled to 30Hz.
 
-The following model parameters were used,
-%
-\begin{IEEEeqnarray*}{lCl}
- \hbwflen & \qquad  \qquad & 30 \\
- \sigma_y & & 0.05 \\
- \sigma_{\omega} & & 0 \\
- \sigma_{\omega,0} & & 0.2 \\
- \gamshape{\hbst{}} & & 1.5 \\
- \gamscale{\hbst{}} & & 1/15 \\
- \gamscale{\hbmd{}} & & 0.001 \\
- \gamshape{\hbmd{},0} & & 40 \\
- \gamscale{\hbmd{},0} & & 0.02      .
-\end{IEEEeqnarray*}
+Tables~\ref{tab:model_parameters} and~\ref{tab:algorithm_parameters} show the model and algorithm parameters used for the tests. With these settings, the algorithm requires roughly 50 times as much processing time as the data spans.
 
-The following algorithm parameters were used,
-%
-\begin{IEEEeqnarray*}{lCl}
- \numpart & \qquad  \qquad  & \clubsuit \\
- \winlen & & 40 \\
- \blocklen & & 20      .
-\end{IEEEeqnarray*}
+\begin{table}[!ht]
+\centering
+\begin{tabular}{ccc}
+ \\ \hline
+ Heartbeat template length & $\hbwflen$ & $30$ \\
+ Measurement noise scale & $\sigma_y$ & $0.05$ \\
+ Template transition density scale & $\sigma_{\omega}$ & $0$ \\
+ Template prior density scale & $\sigma_{\omega,0}$ & $0.2$ \\
+ Heartbeat start time transition density shape & $\gamshape{\hbst{}}$ & $1.5$ \\
+ Heartbeat start time transition density scale & $\gamscale{\hbst{}}$ & $1/15$ \\
+ Minimum beat duration transition density scale & $\gamscale{\hbmd{}}$ & $0.001$ \\
+ Minimum beat duration prior density shape & $\gamshape{\hbmd{},0}$ & $40$ \\
+ Minimum beat duration prior density scale & $\gamscale{\hbmd{},0}$ & $0.02$ \\
+ \hline \\
+\end{tabular}
+\caption{Model parameters}
+\label{tab:model_parameters}
+\end{table}
+
+\begin{table}[!ht]
+\centering
+\begin{tabular}{ccc}
+ \\ \hline
+ Number of filter particles & $\numpart$ & $200$ \\
+ Window length & $\winlen$ & $40$ \\
+ Block length & $\blocklen$ & $20$ \\
+ \hline
+\end{tabular}
+\caption{Algorithm parameters}
+\label{tab:algorithm_parameters}
+\end{table}
 
 \subsection{Data Sets}
 
@@ -644,9 +656,27 @@ The algorithm was tested on a variety of data collected from subjects lying in v
 
 \subsection{Results}
 
-{\meta Better put some results here.}
+Figure~\ref{fig:one_person} shows a typical section of data with a single person, the heartbeat start times and durations inferred by the particle filter compared to those measured by an ECG sensor, and the heartbeat templates inferred analytically conditional on these particles. Figure~\ref{fig:two_person} shows equivalent results for a two-person data set.
 
+\begin{figure}
+\centering
+\subfloat[Measured force signal from sensors]{\includegraphics[width=0.8\columnwidth]{np1_data.pdf}} \\
+\subfloat[Heartbeat timings from ECG (solid) and BCG (dashed) inferred by particle filter]{\includegraphics[width=0.8\columnwidth]{np1_timing.pdf}} \\
+\subfloat[Particle filter effective sample size after each processing frame]{\includegraphics[width=0.8\columnwidth]{np1_ess.pdf}}
+\caption{}
+\label{fig:one_person}
+\end{figure}
 
+\begin{figure}
+\centering
+\subfloat[Measured force signal from sensors]{\includegraphics[width=0.8\columnwidth]{np2_data.pdf}} \\
+\subfloat[Heartbeat timings from ECG (solid) and BCG (dashed) inferred by particle filter]{\includegraphics[width=0.8\columnwidth]{np2_timing.pdf}} \\
+\subfloat[Particle filter effective sample size after each processing frame]{\includegraphics[width=0.8\columnwidth]{np2_ess.pdf}}
+\caption{}
+\label{fig:two_person}
+\end{figure}
+
+The algorithm was tested on eight data sets with each case (one- and two-person) with subjects lying in a variety of poses. In all cases, the inferred heartbeat times were in close agreement with those measured by the ECG. The effective sample sizes in the two-person case were very low, occasionally dropping to a single significant particle. At these points, all but one of the particle histories are discarded --- the algorithm is really producing a point estimate rather than a distribution. Effective sample sizes can be increased by decreasing the block length, $\blocklen$, at a proportional cost in computational time. A better design for the proposal mechanism may be required to alleviate this problem effectively.
 
 \appendix
 
