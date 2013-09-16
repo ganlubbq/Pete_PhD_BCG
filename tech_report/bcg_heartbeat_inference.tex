@@ -217,7 +217,7 @@ An exact algorithm (in the asymptotic sense) results whatever distribution is us
 The simplest choice for importance distribution is the transition distribution. As described, this is easy to sample from. However, it does not use any information available from the observations, and is thus highly inefficient. Most particles will have very low weights. The simplest option for the extension distribution is also to use the transition distribution,
 %
 \begin{IEEEeqnarray}{rCl}
- \impden{\ti}{\ti+\winlen}(\repcp[\ti]{\ti+\winlen} | \cp{\ti-\blocklen+\winlen}) & = & \transden{\cp{}}(\repcp[\ti]{\ti+\winlen} | \cp{\ti}) \nonumber \\
+ \impden{\ti}{\ti+\winlen}(\cp[\ti]{\ti+\winlen} | \cp{\ti-\blocklen+\winlen}) & = & \transden{\cp{}}(\cp[\ti]{\ti+\winlen} | \cp{\ti}) \nonumber \\
  \artden{\ti}{\ti-\blocklen+\winlen}( \cp[\ti]{\ti-\blocklen+\winlen} | \cp{\ti}, \repcp[\ti]{\ti+\winlen}) & = & \transden{\cp{}}(\cp[\ti]{\ti-\blocklen+\winlen} | \cp{\ti}) \nonumber      .
 \end{IEEEeqnarray}
 %
@@ -232,51 +232,60 @@ With these choices, the weight formula simplifies to,
 For the heartbeat inference problem investigated in this paper, the observations are highly informative (high dimension and low noise), and therefore it is vital to propose heartbeat sequences close to peaks in the likelihood. {\meta Graph.} The method proposed here was developed from the Gaussian approximation of the optimal importance density described by \citet{Doucet2000a} for standard hidden Markov model particle filters, and also closely resembles the ``move-reweighting'' algorithms recently formalised by \citet{Marques2013}. We begin by describing the procedure for sampling changepoints algorithmically,
 %
 \begin{algorithmic}[1]
-  \WHILE{the latest changepoint in both sequences is earlier than the end of the window,}
-    \STATE Sample a changepoint parameter and intermediate changepoint time for each sequence from the transition density.
-    \STATE Starting with the intermediate times, deterministically optimise to find a nearby local maximum of the likelihood in the 2D space spanned by the latest changepoint time in each sequence.
-    \STATE Sample a final value for these two latest changepoint times from a joint density centered on the local maximum.
+  \STATE Form a list of all the sub-sequences.
+  \WHILE{the changepoint list is not empty,}
+    \STATE Sample a changepoint parameter and intermediate changepoint time from the transition density for each remaining sub-sequence.
+    \STATE If the intermediate time falls after the end of the window, discard that changepoint and remove the corresponding sub-sequence from the list.
+    \STATE Starting with the intermediate values, deterministically optimise the latest changepoint times for the remaining sub-sequences to find a nearby local maximum of the likelihood.
+    \STATE Sample a final value for each of latest changepoint times (separately) from densities centered on the local maximum.
     \STATE Discard the intermediate changepoint times.
   \ENDWHILE
-  \WHILE{the latest changepoint in either sequence is earlier than the end of the window,}
-    \STATE Sample a changepoint parameter and intermediate changepoint time for the remaining sequence from the transition density.
-    \STATE Starting with the intermediate time, deterministically optimise to find a nearby local maximum of the likelihood in the 1D space spanned by the latest changepoint time the remaining each sequence.
-    \STATE Sample a final value for the latest changepoint time from a density centered on the local maximum.
-    \STATE Discard the intermediate changepoint time.
-  \ENDWHILE
-  \STATE The last changepoint in each sequence, which occur after the end of the window, are discarded.
 \end{algorithmic}
+%
+Final changepoint times are sampled independently in order to simplify the weight calculations below. Compared to sampling a joint density, this appears to have little effect on performance for our heartbeat inference problems, since there is generally little correlation at the maxima.
 
-We can write the distribution sampled by this procedure as follows (assuming $\dmrcpi[2]{\ti_2} - \dmrcpi[2]{\ti_1} \geq \dmrcpi[1]{\ti_2} - \dmrcpi[1]{\ti_1}$, switch the indexes if this is not the case),
+In order to write a distribution concisely which corresponds to this procedure, define the following augmented sequence variable,
+%
+\begin{IEEEeqnarray}{rCl}
+ \augcp[\ti_1]{\ti_2} & = & \left\{\cpt[\sqi]{j}, \intcpt[\sqi]{j}, \cpp[\sqi]{j} \: \forall j, \sqi : \ot{\ti_1} < \cpt[\sqi]{j} \leq \ot{\ti_2} \right\} \nonumber      .
+\end{IEEEeqnarray}
+%
+An extended distribution over this augmented sequence is then targeted,
+%
+\begin{IEEEeqnarray}{rCl}
+ p\left(\augcp{\ti+\winlen} | \ob{1:\ti+\winlen}\right) \intden{\ti}\left( \left. \left\{\intcpt[\sqi]{\dmrcpi{\ti}+1:\dmrcpi{\ti+\winlen}} \: \forall \sqi \right\} \right| \cp{\ti+\winlen} \right) \nonumber      ,
+\end{IEEEeqnarray}
+%
+and the proposal distribution may now be written,
 %
 \begin{IEEEeqnarray}{l}
- \impden{\ti}{\ti+\winlen}(\cp[\ti]{\ti+\winlen}, \tmpcpt[1]{\dmrcpi[1]{\ti}+1:\dmrcpi[1]{\ti+\winlen}}, \tmpcpt[2]{\dmrcpi[2]{\ti}+1:\dmrcpi[2]{\ti+\winlen}}, \dots | \cp{\ti-\blocklen+\winlen}) = \prod_{\sqi}\left[ \frac{ \survfunc[\sqi]{\cpt[\sqi]{\dmrcpi[\sqi]{\ti_2}}}{\cpp[\sqi]{\dmrcpi[\sqi]{\ti_2}}}{\ot{\ti_2}} }{ \survfunc[\sqi]{\cpt[\sqi]{\dmrcpi[\sqi]{\ti_1}}}{\cpp[\sqi]{\dmrcpi[\sqi]{\ti_1}}}{\ot{\ti_1}} } \right] \nonumber \\
- \qquad  \times \prod_{l=1}^{\diffcpi{1}} \left[\prod_{\sqi} \transden[\sqi]{\cpt{},\cpp{}}\left(\tmpcpt[\sqi]{\dmrcpi[\sqi]{\ti_1}+l}, \cpp[\sqi]{\dmrcpi[\sqi]{\ti_1}+l} \left| \cpt[\sqi]{\dmrcpi[\sqi]{\ti_1}+l-1}, \cpp[\sqi]{\dmrcpi[\sqi]{\ti_1}+l-1}\right.\right) \right] \nonumber \\
- \qquad \qquad \qquad \qquad \qquad \qquad\times \adjden \left( \cpt[1]{\dmrcpi[1]{\ti_1}+l}, \cpt[2]{\dmrcpi[2]{\ti_1}+l} \left| \tmpcpt[1]{\dmrcpi[1]{\ti_1}+l}, \tmpcpt[2]{\dmrcpi[2]{\ti_1}+l} \right.\right) \nonumber \\
- \qquad  \times \prod_{l=\diffcpi{1}+1}^{\diffcpi{2}} \transden[2]{\cpt{},\cpp{}}\left(\tmpcpt[2]{\dmrcpi[2]{\ti_1}+l}, \cpp[2]{\dmrcpi[2]{\ti_1}+l} \left| \cpt[2]{\dmrcpi[2]{\ti_1}+l-1}, \cpp[2]{\dmrcpi[2]{\ti_1}+l-1}\right.\right) \adjden \left( \cpt[2]{\dmrcpi[2]{\ti_1}+l} \left| \tmpcpt[2]{\dmrcpi[2]{\ti_1}+l} \right.\right) \nonumber      ,
+ \impden{\ti}{\ti+\winlen}(\augcp[\ti]{\ti+\winlen} | \cp{\ti}) \nonumber \\
+ = \prod_{\sqi}\left\{ \frac{ \survfunc[\sqi]{\cpt[\sqi]{\dmrcpi[\sqi]{\ti+\winlen}}}{\cpp[\sqi]{\dmrcpi[\sqi]{\ti+\winlen}}}{\ot{\ti+\winlen}} }{ \survfunc[\sqi]{\cpt[\sqi]{\dmrcpi[\sqi]{\ti}}}{\cpp[\sqi]{\dmrcpi[\sqi]{\ti}}}{\ot{\ti}} } \prod_{\cpi=\dmrcpi[\sqi]{\ti}+1}^{\dmrcpi[\sqi]{\ti+\winlen}} \transden[\sqi]{\cpt{},\cpp{}}\left(\intcpt[\sqi]{\cpi}, \cpp[\sqi]{\cpi} \left| \cpt[\sqi]{\cpi-1}, \cpp[\sqi]{\cpi-1}\right.\right) \adjden \left( \cpt[\sqi]{\cpi}\left| \intcpt[\sqi]{\cpi} \right.\right) \right\} \nonumber \\
+ = \transden{\cp{}}(\cp[\ti]{\ti+\winlen} | \cp{\ti}) \prod_{\sqi} \prod_{\cpi=\dmrcpi[\sqi]{\ti}+1}^{\dmrcpi[\sqi]{\ti+\winlen}} \frac{ \adjden \left( \cpt[\sqi]{\cpi}\left| \intcpt[\sqi]{\cpi} \right.\right) \transden[\sqi]{\cpt{},\cpp{}}\left(\intcpt[\sqi]{\cpi} \left| \cpp[\sqi]{\cpi}, \cpt[\sqi]{\cpi-1}, \cpp[\sqi]{\cpi-1}\right.\right) }{ \transden[\sqi]{\cpt{},\cpp{}}\left(\cpt[\sqi]{\cpi} \left| \cpp[\sqi]{\cpi}, \cpt[\sqi]{\cpi-1}, \cpp[\sqi]{\cpi-1}\right.\right) }   \nonumber      ,
 \end{IEEEeqnarray}
 %
-where $\diffcpi{\sqi} = \dmrcpi[\sqi]{\ti_2} - \dmrcpi[\sqi]{\ti_1}$, and $\adjden$ is the chosen density for the final changepoint times. For our simulations, a Gaussian was used, with mean at the located local maximum and variance equal to the Hessian of the log-likelihood at this point.
+where $\adjden$ is the importance density chosen for the final changepoint times. For our simulations, a Gaussian was used, with mean at the located local maximum and variance equal to a numerical estimate of the Hessian of the log-likelihood at this point.
 
-Since the intermediate changepoint times are to be discarded, writing the distribution of the final sequence includes numerous intractable integrals. The solution is to further extend the target distribution over these intermediate variables using an additional artificial extension distribution,
-%
-\begin{IEEEeqnarray}{c}
- p\left(\cp{\ti}, \repcp[\ti]{\ti+\winlen} | \ob{1:\ti+\winlen}\right) \artden{\ti}{\ti-\blocklen+\winlen}\left( \cp[\ti]{\ti-\blocklen+\winlen} | \cp{\ti}, \repcp[\ti]{\ti+\winlen}\right) \nonumber \\
- \qquad \qquad \times \tmpden\left( \tmpcpt[1]{\dmrcpi[1]{\ti}+1:\dmrcpi[1]{\ti+\winlen}}, \tmpcpt[2]{\dmrcpi[2]{\ti}+1:\dmrcpi[2]{\ti+\winlen}}, \dots | \cp{\ti}, \repcp[\ti]{\ti+\winlen} \right) \nonumber      .
-\end{IEEEeqnarray}
-%
-A simple choice is to use the transition distribution for both $\artden{}{}$ (as before) and $\tmpden$,
+The artificial extension distribution over the replaced, overlapping sequence is chosen to have the same form as the importance distribution, as suggested by \citet{DelMoral2006},
 %
 \begin{IEEEeqnarray}{l}
- \tmpden\left( \tmpcpt[1]{\dmrcpi[1]{\ti}+1:\dmrcpi[1]{\ti+\winlen}}, \tmpcpt[2]{\dmrcpi[2]{\ti}+1:\dmrcpi[2]{\ti+\winlen}}, \dots | \cp{\ti}, \repcp[\ti]{\ti+\winlen} \right) \nonumber \\
- \qquad \qquad \qquad = \prod_{\sqi} \prod_{\cpi=\dmrcpi[\sqi]{\ti_1}+1}^{\dmrcpi[\sqi]{\ti_2}} \transden[\sqi]{\cpt{}}\left(\tmpcpt[\sqi]{\cpi} | \cpt[\sqi]{\cpi-1}, \cpp[\sqi]{\cpi-1}\right) \nonumber      ,
+ \artden{\ti}{\ti-\blocklen+\winlen}\left( \augcp[\ti]{\ti-\blocklen+\winlen} | \cp{\ti} \right) \nonumber \\
+ = \transden{\cp{}}(\cp[\ti]{\ti-\blocklen+\winlen} | \cp{\ti}) \prod_{\sqi} \prod_{\cpi=\dmrcpi[\sqi]{\ti}+1}^{\dmrcpi[\sqi]{\ti-\blocklen+\winlen}} \frac{ \adjden \left( \cpt[\sqi]{\cpi}\left| \intcpt[\sqi]{\cpi} \right.\right) \transden[\sqi]{\cpt{},\cpp{}}\left(\intcpt[\sqi]{\cpi} \left| \cpp[\sqi]{\cpi}, \cpt[\sqi]{\cpi-1}, \cpp[\sqi]{\cpi-1}\right.\right) }{ \transden[\sqi]{\cpt{},\cpp{}}\left(\cpt[\sqi]{\cpi} \left| \cpp[\sqi]{\cpi}, \cpt[\sqi]{\cpi-1}, \cpp[\sqi]{\cpi-1}\right.\right) } \nonumber      .
+\end{IEEEeqnarray}
+
+For simplicity, we choose to use the transition distribution for $\intden{\ti}$,
+%
+\begin{IEEEeqnarray}{l}
+ \intden{\ti}\left( \left. \left\{\intcpt[\sqi]{\dmrcpi{\ti}+1:\dmrcpi{\ti+\winlen}} \: \forall \sqi \right\} \right| \cp{\ti+\winlen} \right) \nonumber \\
+ \qquad \qquad \qquad = \prod_{\sqi} \prod_{\cpi=\dmrcpi[\sqi]{\ti}+1}^{\dmrcpi[\sqi]{\ti+\winlen}} \transden[\sqi]{\cpt{}}\left( \intcpt[\sqi]{\cpi} | \cpp[\sqi]{\cpi}, \cpt[\sqi]{\cpi-1}, \cpp[\sqi]{\cpi-1} \right) \nonumber      .
 \end{IEEEeqnarray}
 %
-which results in the following particle weight formula,
+Indicating the newly sampled augmented sequence variables with tildes, the resulting particle weight formula is,
 %
 \begin{IEEEeqnarray}{l}
  \pw{\ti} \propto \frac{ \lhood(\ob{\ti+1:\ti+\winlen} | \cp{\ti}, \repcp[\ti]{\ti+\winlen}, \ob{1:\ti}) }{ \lhood(\ob{\ti+1:\ti-\blocklen+\winlen} | \cp{\ti-\blocklen+\winlen}, \ob{1:\ti}) } \nonumber \\
- \qquad \times \frac{ \prod_{\sqi} \prod_{\cpi=\dmrcpi[\sqi]{\ti_1}+1}^{\dmrcpi[\sqi]{\ti_2}} \transden[\sqi]{\cpt{}}\left(\cpt[\sqi]{\cpi} | \cpt[\sqi]{\cpi-1}, \cpp[\sqi]{\cpi-1}\right) }{ \prod_{l=1}^{\diffcpi{1}} \adjden \left( \cpt[1]{\dmrcpi[1]{\ti_1}+l}, \cpt[2]{\dmrcpi[2]{\ti_1}+l} \left| \tmpcpt[1]{\dmrcpi[1]{\ti_1}+l}, \tmpcpt[2]{\dmrcpi[2]{\ti_1}+l} \right.\right) \prod_{l=\diffcpi{1}+1}^{\diffcpi{2}} \adjden \left( \cpt[2]{\dmrcpi[2]{\ti_1}+l} \left| \tmpcpt[2]{\dmrcpi[2]{\ti_1}+l} \right.\right) } \nonumber       .
+ \qquad \times \prod_{\sqi} \prod_{\cpi=\dmrcpi[\sqi]{\ti}+1}^{\dmrcpi[\sqi]{\ti+\winlen}} \frac{ \transden[\sqi]{\cpt{}}\left(\repcpt[\sqi]{\cpi} | \repcpt[\sqi]{\cpi-1}, \cpp[\sqi]{\cpi-1}\right) }{ \adjden \left( \repcpt[\sqi]{\cpi}\left| \repintcpt[\sqi]{\cpi} \right.\right) } \nonumber \\
+ \qquad \times \prod_{\sqi} \prod_{\cpi=\dmrcpi[\sqi]{\ti}+1}^{\dmrcpi[\sqi]{\ti-\blocklen+\winlen}} \frac{ \adjden \left( \cpt[\sqi]{\cpi}\left| \intcpt[\sqi]{\cpi} \right.\right) }{ \transden[\sqi]{\cpt{}}\left(\cpt[\sqi]{\cpi} | \cpt[\sqi]{\cpi-1}, \cpp[\sqi]{\cpi-1}\right) } \nonumber      .
 \end{IEEEeqnarray}
 
 

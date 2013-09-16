@@ -46,9 +46,14 @@
 \newcommand{\cp}[2][]{\ifstrempty{#1}{\theta_{#2}}{\theta_{#1 || #2}}}      % Changepoint set
 
 % Extra changepoint things for algorithms
-\newcommand{\diffcpi}[1]{\Delta K^{[#1]}}                                          % Number of changepoints in the window
-\newcommand{\tmpcpt}[2][]{\ifstrempty{#1}{\tau_{#2}^*}{{\tau_{#2}^{*[#1]}}}}                    % Temporary Intermediate changepoint time
+\newcommand{\augcp}[2][]{\ifstrempty{#1}{\theta_{#2}^*}{\theta_{#1 || #2}^*}}                   % Augmented changepoint set
+\newcommand{\diffcpi}[1]{\Delta K^{[#1]}}                                                       % Number of changepoints in the window
+\newcommand{\intcpt}[2][]{\ifstrempty{#1}{\tau_{#2}^*}{{\tau_{#2}^{*[#1]}}}}                    % Temporary Intermediate changepoint time
+\newcommand{\repcpt}[2][]{\ifstrempty{#1}{\tilde{\tau}_{#2}}{{\tilde{\tau}_{#2}^{[#1]}}}}       % Replacement changepoint time
+\newcommand{\repintcpt}[2][]{\ifstrempty{#1}{\tilde{\tau}_{#2}^*}{{\tilde{\tau}_{#2}^{*[#1]}}}} % Replacement temporary Intermediate changepoint time
 \newcommand{\repcp}[2][]{\ifstrempty{#1}{\tilde{\theta}_{#2}}{\tilde{\theta}_{#1 || #2}}}       % Changepoint set replacement
+\newcommand{\repaugcp}[2][]{\ifstrempty{#1}{\tilde{\theta}_{#2}^*}{\tilde{\theta}_{#1 || #2}^*}}       % Changepoint set replacement
+
 
 % State and observation dynamics
 \newcommand{\transfun}[1][]{\ifstrempty{#1}{F}{F^{[#1]}}}               % Deterministic transition function
@@ -85,7 +90,7 @@
 \newcommand{\impden}[2]{q_{#1 || #2}}           % Changepoint importance density
 \newcommand{\artden}[2]{\rho_{#1 || #2}}        % Changepoint artificial density
 \newcommand{\adjden}{\varphi}                   % Changepoint time ``adjustment'' density
-\newcommand{\tmpden}{\psi}                      % Intermediate changepoint artificial target density
+\newcommand{\intden}[1]{\psi_{#1}}              % Intermediate changepoint artificial target density
 \newcommand{\lhood}{p_{y}}                      % Likelihood
 \newcommand{\loglhood}{L_{y}}                   % Log-likelihood
 \newcommand{\contlhood}{\phi}                   % Contracted likelihood (as a function of the sequence)
