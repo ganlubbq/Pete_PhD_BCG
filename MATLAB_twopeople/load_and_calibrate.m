@@ -12,6 +12,9 @@ flow = 0.2;
 
 % Load data
 load(datafilename);
+if ~exist('t', 'var')
+    t = (1:size(F,1))*63;
+end
 
 % Pick out a nice chunk to work on
 t_idx = find((t>t_start)&(t<t_stop));
@@ -56,6 +59,13 @@ beats2(beats2(:,1)<time(offset),:) = [];
 % Select a little chunk
 bcg_out = bcg_filt(offset+1:offset+K,:)';
 time = time(offset+1:offset+K);
+
+% Correct if its from the newer sets
+if   strcmp(datafilename,'../data/two_person/ash_jenz.mat') ...
+  || strcmp(datafilename,'../data/two_person/ash_jing.mat') ...
+  || strcmp(datafilename,'../data/two_person/ash_phil.mat')
+    bcg_out = bcg_out/2000;
+end
 
 % Shift time by offset
 t_off = time(1);

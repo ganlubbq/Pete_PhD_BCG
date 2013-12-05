@@ -1,7 +1,7 @@
 % Set model parameters
 
 % Basics
-model.K = 600;
+model.K = 300;
 model.fs = 30;
 model.dw = 30;
 model.dp = 1;
@@ -24,10 +24,11 @@ elseif model.np == 2
 end
 
 % Beat offset model
-model.p_prior_shape = 40;
-model.p_prior_scale = 0.02;
+model.p_prior_shift = 0;%0.4;%0.5;%
+model.p_prior_shape = 40;%20/3;%10;%
+model.p_prior_scale = 0.02;%3/40;%0.05;%
 model.p_trans_scale = 1E-3;
 
 % Beat period model
 model.tau_trans_shape = 1.5;
-model.tau_trans_scale = 0.1/1.5;
+model.tau_trans_scale = 0.1/1.5;%0.3/1.5;

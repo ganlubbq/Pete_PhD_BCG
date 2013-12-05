@@ -26,17 +26,17 @@ if ~exist('flags', 'var') || ~isfield(flags,'batch') || (~flags.batch)
     %%% SETTINGS %%%
     
     % DEFINE RANDOM SEED
-    rand_seed = 1;
+    rand_seed = 0;
     
     t_length = 1E6;
-    offset = 110;
+    offset = 100;
     
     if model.np == 1
-        data_file = '../data/data3.mat'
+        data_file = '../data/one_person/data12.mat' % Default 3
         t_start = 3E6;
     elseif model.np == 2
-        data_file = '../data/data16.mat'
-        t_start = 6E6;%12E6;%3E6;%16E6;%2.5E6;%8E6;%
+        data_file = '../data/two_person/ash_phil.mat' %'../data/two_person/data16.mat' % Default 16
+        t_start = 1E6;
     end
     
     %%%%%%%%%%%%%%%%
@@ -57,39 +57,17 @@ if ~exist('flags', 'var') || ~isfield(flags,'batch') || (~flags.batch)
     s = RandStream('mt19937ar', 'seed', rand_seed);
     RandStream.setDefaultStream(s);
     
+else
+    
+    disp('_____RUNNING IN BATCH MODE_____');
+    
 end
 
 %% Load some data
 [time, observ, beats1, beats2] = load_and_calibrate(model.K, data_file, 'calibration.mat', t_start, t_start+t_length, offset);
 
-%% Separate tasks
-if 0
-    ecg_beat(1) = beat_init(model, -Inf, 0, [], beats1(:,1)', zeros(size(beats1(:,1)')) );
-    if model.np > 1
-        ecg_beat(2) = beat_init(model, -Inf, 0, [], beats2(:,1)', zeros(size(beats2(:,1)')) );
-    end
-    [wf_mn, wf_vr, H] = heartbeat_separation( display, algo, model, time, observ, ecg_beat);
-    w_av{1} = reshape(wf_mn(1:4*model.dw), model.dw, 4);
-    w_sd{1} = reshape(sqrt(diag(wf_vr(1:4*model.dw,1:4*model.dw))), model.dw, 4);
-    figure, hold on
-    plot(w_av{1}); plot(w_av{1}+2*w_sd{1}, '--'); plot(w_av{1}-2*w_sd{1}, '--');
-    if model.np == 2
-        w_av{2} = reshape(wf_mn(4*model.dw+1:end), model.dw, 4);
-        w_sd{2} = reshape(sqrt(diag(wf_vr(4*model.dw+1:end,4*model.dw+1:end))), model.dw, 4);
-        figure, hold on
-        plot(w_av{2}); plot(w_av{2}+2*w_sd{2}, '--'); plot(w_av{2}-2*w_sd{2}, '--');
-    end
-    %     [ps] = heartbeat_timeonlyinference(display, algo, model, time, observ, wf_mn, wf_vr);
-    
-    model.w_prior_mn = wf_mn;
-    model.w_prior_vr = wf_vr;
-    
-end
-
 %% Testing
-if 1
-    [ps, ess] = heartbeat_inference(display, algo, model, time, observ);
-end
+[ps, ess] = heartbeat_inference(display, algo, model, time, observ);
 
 %% Plot data
 if display.plot_after

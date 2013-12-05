@@ -1,4 +1,4 @@
-function [beat] = heartbeat_sequenceproposal(algo, model, beat, time, observ, wf_mn, wf_vr)
+function [beat, sf_ratio] = heartbeat_sequenceproposal(algo, model, beat, time, observ, wf_mn, wf_vr)
 
 % We're going to sequentially propose a new beat and then optimise it for
 % each person until we overun the window.
@@ -12,9 +12,9 @@ end
 
 % Sample a new pre_param, to refresh the diversity
 for pp = 1:model.np
-    if ~isempty(beat(pp).ante_param)
+%     if ~isempty(beat(pp).ante_param)
         beat(pp).pre_param = heartbeat_paramtrans(model, beat(pp).ante_param, []);
-    end
+%     end
 end
 
 % Start and end times of window
@@ -40,6 +40,13 @@ previous_param = zeros(size(latest_param));
 interm_time = zeros(size(latest_time));
 interm_param = zeros(size(latest_param));
 
+interm_sf = zeros(1,model.np);
+new_interm_sf = zeros(1,model.np);
+for pp = 1:model.np
+    interm_sf(pp) = heartbeat_survivorfunc(model, latest_time(pp), latest_param(pp), end_time);
+end
+final_sf = interm_sf;
+
 % Loop
 while true
     
@@ -51,6 +58,7 @@ while true
             u = unifrnd(lower_lim, 1);
             interm_time(pp) = latest_time(pp) + latest_param(pp) + gaminv(u, model.tau_trans_shape, model.tau_trans_scale);
             interm_param(pp) = heartbeat_paramtrans(model, latest_param(pp), []);
+            new_interm_sf(pp) = heartbeat_survivorfunc(model, interm_time(pp), interm_param(pp), end_time);
         end
     end
     
@@ -68,6 +76,7 @@ while true
             else
                 interm_beat(pp).time = [interm_beat(pp).time interm_time(pp)];
                 interm_beat(pp).param = [interm_beat(pp).param interm_param(pp)];
+                interm_sf(pp) = new_interm_sf(pp);
             end
         end
     end
@@ -96,6 +105,7 @@ while true
                 latest_time(pp) = mvnrnd(optimal_time(pp), ppsl_vr(pp));
             end
             latest_param(pp) = interm_param(pp);
+            final_sf(pp) = heartbeat_survivorfunc(model, latest_time(pp), latest_param(pp), end_time);
             
             % Calculate probabilities
             ppsl_dens = loggausspdf(latest_time(pp), optimal_time(pp), ppsl_vr(pp));
@@ -112,6 +122,8 @@ while true
     
 end
 
+sf_ratio = final_sf - interm_sf;
+
 end
 
 
@@ -123,6 +135,7 @@ function [tau, hess, LB, UB] = optimise_beat_times(algo, model, beat, p_idx, b_i
 % They should have the same length
 
 tol = 0.001;
+tolf = 0.1;
 opt_alg = 'trust-region-reflective' ;
 
 if any([beat.pre_time]<0)
@@ -146,17 +159,18 @@ elseif length(p_idx) == 1
     tau0 = beat(p_idx).time(b_idx);
     
     % Minimise negative log-likelihood
-    h_of = @(tau) log_lhood(algo, model, time, observ, beat, p_idx, b_idx, wf_mn, wf_vr, tau);
-    LB(p_idx) = max(tau0-half_width, time(1));
     if b_idx > 1
-        LB(p_idx) = max(LB(p_idx), beat(p_idx).time(b_idx-1)+beat(p_idx).param(b_idx-1));
+        tau_offset(p_idx) = beat(p_idx).time(b_idx-1) + beat(p_idx).param(b_idx-1);
     else
-        LB(p_idx) = max(LB(p_idx), beat(p_idx).pre_time+beat(p_idx).pre_param);
-    end 
+        tau_offset(p_idx) = beat(p_idx).pre_time + beat(p_idx).pre_param;
+    end
+    h_of = @(tau) log_lhood(algo, model, time, observ, beat, p_idx, b_idx, wf_mn, wf_vr, tau, tau_offset);
+    LB(p_idx) = max(tau0-half_width, time(1));
+    LB(p_idx) = max(LB(p_idx), tau_offset(p_idx));
     UB(p_idx) = min(tau0+half_width, time(end));
 %     options = optimset('Display','notify-detailed', 'TolX',tol);
 %     tau = fminbnd(h_of, LB, UB, options);
-    options = optimset('GradObj','on', 'Display','notify-detailed', 'TolX',tol,'algorithm',opt_alg);
+    options = optimset('GradObj','on', 'Display','notify-detailed', 'TolFun',tolf, 'TolX',tol,'algorithm',opt_alg);
     [tau(p_idx), ~, ~, ~, ~, ~, hess] = fmincon(h_of, tau0, [], [], [], [], LB(p_idx), UB(p_idx), [], options);
     
     % Approximate Hessian?
@@ -178,14 +192,18 @@ else
     tau0 = tau0';
     
     % Minimise negative log-likelihood
-    h_of = @(tau) log_lhood(algo, model, time, observ, beat, p_idx, b_idx, wf_mn, wf_vr, tau);
-    LB = max(tau0-half_width, time(1));
+    tau_offset = zeros(1,length(p_idx));
     for pp = 1:2
         if b_idx(pp) > 1
-            LB(pp) = max(LB(pp), beat(p_idx(pp)).time(b_idx(pp)-1)+beat(p_idx(pp)).param(b_idx(pp)-1));
+            tau_offset(pp) = beat(p_idx(pp)).time(b_idx(pp)-1) + beat(p_idx(pp)).param(b_idx(pp)-1);
         else
-            LB(pp) = max(LB(pp), beat(p_idx(pp)).pre_time+beat(p_idx(pp)).pre_param);
+            tau_offset(pp) = beat(p_idx(pp)).pre_time + beat(p_idx(pp)).pre_param;
         end
+    end
+    h_of = @(tau) log_lhood(algo, model, time, observ, beat, p_idx, b_idx, wf_mn, wf_vr, tau, tau_offset);
+    LB = max(tau0-half_width, time(1));
+    for pp = 1:2
+        LB(pp) = max(LB(pp), tau_offset(pp));
     end
     UB = min(tau0+half_width, time(end));
     options = optimset('GradObj','on', 'Display','notify-detailed', 'TolX', tol, 'algorithm',opt_alg);
@@ -200,7 +218,7 @@ end
 
 
 
-function [func, grad, hess] = log_lhood(algo, model, time, observ, beat, p_idx, b_idx, wf_mn, wf_vr, tau)
+function [func, grad, hess] = log_lhood(algo, model, time, observ, beat, p_idx, b_idx, wf_mn, wf_vr, tau, tau_min)
 
 for bb = 1:length(p_idx)
     beat(p_idx(bb)).time(b_idx(bb)) = tau(bb);
@@ -216,76 +234,102 @@ R = model.y_obs_vr*eye(length(Y));
 % nu = S\y_minus_Hm;
 
 y_minus_Hm = Y-mtimesx(H,'n',wf_mn,'n','SPEED');
-G = mtimesx(H,'n',wf_vr,'n','SPEED');
-S = R + mtimesx(G,'n',H,'t','SPEED');
-% U = S\G;
-nu = S\y_minus_Hm;
 
-% func = -loggausspdf(Y, H*wf_mn, S);
-% func = -loggausspdf(y_minus_Hm, 0, S);
+if tau < 3
 
-% log_2(pi) is 1.83787706640935;
-func = 0.5*( y_minus_Hm'*nu + 1.83787706640935*length(Y) +  2*sum(log(diag(chol(S)))) );
-
-if nargout > 1
+    G = mtimesx(H,'n',wf_vr,'n','SPEED');
+    S = R + mtimesx(G,'n',H,'t','SPEED');
+    % U = S\G;
+    nu = S\y_minus_Hm;
     
-    grad = zeros(length(p_idx),1);
-    hess = zeros(length(p_idx));
+    % func = -loggausspdf(Y, H*wf_mn, S);
+    % func = -loggausspdf(y_minus_Hm, 0, S);
     
-%     %%%%%
-%     M = S\G;
-%     zeta = G'*nu;
-%     for bb = 1:length(p_idx)
-%         dH = heartbeat_obsmatderiv(algo, model, time, beat, p_idx(bb), b_idx(bb));
-%         grad(bb) = -(  wf_mn'*dH'*nu + zeta'*dH'*nu - trace(dH'*M)  );
-%     end
-%     %%%%%
+    % log_2(pi) is 1.83787706640935;
+    func = 0.5*( y_minus_Hm'*nu + 1.83787706640935*length(Y) +  sum(log(diag(chol(S)))) );
     
     for bb = 1:length(p_idx)
-        dH = heartbeat_obsmatderiv(algo, model, time, beat, p_idx(bb), b_idx(bb));
+        func = func + (1-model.tau_trans_shape)*log(tau(bb)-tau_min(bb)) + (tau(bb)-tau_min(bb))/model.tau_trans_scale;
+    end
+    
+    if nargout > 1
         
-%         T = G*dH';
-%         M = T/S;
-        T = mtimesx(G,'n',dH,'t','SPEED');
-        M = zeros(size(T));
-        L = min(algo.L, length(time));
-        for ii = 1:model.num_sens
-            idx_rng = (L*(ii-1)+1):(L*ii);
-            M(idx_rng,idx_rng) = T(idx_rng,idx_rng)/S(idx_rng,idx_rng);
+        grad = zeros(length(p_idx),1);
+        hess = zeros(length(p_idx));
+        
+        %     %%%%%
+        %     M = S\G;
+        %     zeta = G'*nu;
+        %     for bb = 1:length(p_idx)
+        %         dH = heartbeat_obsmatderiv(algo, model, time, beat, p_idx(bb), b_idx(bb));
+        %         grad(bb) = -(  wf_mn'*dH'*nu + zeta'*dH'*nu - trace(dH'*M)  );
+        %     end
+        %     %%%%%
+        
+        for bb = 1:length(p_idx)
+            dH = heartbeat_obsmatderiv(algo, model, time, beat, p_idx(bb), b_idx(bb));
+            
+            %         T = G*dH';
+            %         M = T/S;
+            T = mtimesx(G,'n',dH,'t','SPEED');
+            M = zeros(size(T));
+            L = min(algo.L, length(time));
+            for ii = 1:model.num_sens
+                idx_rng = (L*(ii-1)+1):(L*ii);
+                M(idx_rng,idx_rng) = T(idx_rng,idx_rng)/S(idx_rng,idx_rng);
+            end
+            grad(bb) = -(  wf_mn'*dH'*nu + nu'*M*y_minus_Hm - trace(M)  );
+            
+            grad(bb) = grad(bb) + (1-model.tau_trans_shape)/(tau(bb)-tau_min(bb)) + 1/model.tau_trans_scale;
+            
+            %         V = U*dH';
+            %         grad(bb) = -(  wf_mn'*dH'*nu + y_minus_Hm'*V*nu - trace(V)  );
+            
+            %         invSigma = inv(wf_vr)+H'*(R\H);
+            %         mu = invSigma\( H'*(R\Y) + wf_vr\wf_mn );
+            %         grad(bb) = -( mu'*dH'*(R\(Y-H*mu)) - trace( H'*(R\dH)/invSigma ) );
+            
+            %         if nargout > 2
+            %
+            %             d2H =
+            %
+            %             h_Omega = T+T';
+            %             h_zeta = h_Omega*nu;
+            %             h_Theta = G*d2H;
+            %             h_xi = dH'*nu;
+            %             h_mtilde = dH'*m;
+            %             h_Gamma = h_Omega*V;
+            %             h_Lambda = dH*wf_vr*dH';
+            %             h_Xi = (h_Lambda + h_Theta - h_Gamma)/S;
+            %
+            %             hess(bb) = - h_zeta'*(S\h_zeta) ...
+            %                        - h_xi'*wf_vr*h_xi ...
+            %                        - nu'*h_Theta*nu ...
+            %                        + wf_mn'*d2H*nu ...
+            %                        + h_mtilde'*(S\h_mtilde) ...
+            %                        + trace(h_Xi);
+            %
+            %         end
+            
         end
-        grad(bb) = -(  wf_mn'*dH'*nu + nu'*M*y_minus_Hm - trace(M)  );
-        
-%         V = U*dH';
-%         grad(bb) = -(  wf_mn'*dH'*nu + y_minus_Hm'*V*nu - trace(V)  );
-        
-%         invSigma = inv(wf_vr)+H'*(R\H);
-%         mu = invSigma\( H'*(R\Y) + wf_vr\wf_mn );
-%         grad(bb) = -( mu'*dH'*(R\(Y-H*mu)) - trace( H'*(R\dH)/invSigma ) );
-        
-%         if nargout > 2
-%             
-%             d2H = 
-%             
-%             h_Omega = T+T';
-%             h_zeta = h_Omega*nu;
-%             h_Theta = G*d2H;
-%             h_xi = dH'*nu;
-%             h_mtilde = dH'*m;
-%             h_Gamma = h_Omega*V;
-%             h_Lambda = dH*wf_vr*dH';
-%             h_Xi = (h_Lambda + h_Theta - h_Gamma)/S;
-%             
-%             hess(bb) = - h_zeta'*(S\h_zeta) ...
-%                        - h_xi'*wf_vr*h_xi ...
-%                        - nu'*h_Theta*nu ...
-%                        + wf_mn'*d2H*nu ...
-%                        + h_mtilde'*(S\h_mtilde) ...
-%                        + trace(h_Xi);
-%             
-%         end
         
     end
-   
+
+else
+    
+    
+    nu = R\y_minus_Hm;
+    % log_2(pi) is 1.83787706640935;
+    func = 0.5*( y_minus_Hm'*nu + 1.83787706640935*length(Y) +  2*sum(log(diag(chol(R)))) );
+    
+    if nargout > 1
+        grad = zeros(length(p_idx),1);
+        for bb = 1:length(p_idx)
+            dH = heartbeat_obsmatderiv(algo, model, time, beat, p_idx(bb), b_idx(bb));
+            grad(bb) = -wf_mn'*dH'*nu;
+        end
+    end
+
 end
 
 end
